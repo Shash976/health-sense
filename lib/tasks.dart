@@ -119,10 +119,28 @@ class TaskPage extends StatelessWidget {
   // Sends the test configuration to the device and navigates to the dashboard
   void _startTest(BuildContext context, String code, String name, String ip, Map<String, dynamic> config, double min, double max) async {
     try {
-      final url = Uri.parse('http://$deviceIp/test?task=$taskCode');
-      await http.get(url); // Arduino handles this request
+      await http.post(
+        Uri.parse('http://$ip/test'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode(config),
+      );
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => DashboardPage(
+            deviceIp: ip,
+            testName: name,
+            min: min,
+            max: max,
+          ),
+        ),
+      );
     } catch (e) {
-      debugPrint("Error sending task: $e");
+      // Show error if POST fails
+      debugPrint("POST failed: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Failed to send test to device")),
+      );
     }
   }
 
@@ -137,10 +155,6 @@ class TaskPage extends StatelessWidget {
           return ListTile(
             title: Text(task['name']),
             trailing: ElevatedButton(
-              child: const Text('Test'),
-              onPressed: () async {
-                await _sendTaskCommand(task['code']);
-                Navigator.push(
               child: const Text("Test"),
               onPressed: () {
                 _showTestDialog(
