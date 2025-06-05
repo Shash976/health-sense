@@ -2,7 +2,8 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
-class DashboardPage extends StatefulWidget {
+class Anal
+yteDashboard extends StatefulWidget {
   final String deviceIp;
   final String testName;
   final double min;
