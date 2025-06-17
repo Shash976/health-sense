@@ -2,14 +2,13 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
-class Anal
-yteDashboard extends StatefulWidget {
+class AnalyteDashboard extends StatefulWidget {
   final String deviceIp;
   final String testName;
   final double min;
   final double max;
 
-  const DashboardPage({
+  const AnalyteDashboard({
     super.key,
     required this.deviceIp,
     required this.testName,
@@ -18,16 +17,17 @@ yteDashboard extends StatefulWidget {
   });
 
   @override
-  State<DashboardPage> createState() => _DashboardPageState();
+  State<AnalyteDashboard> createState() => _AnalyteDashboardState();
 }
 
-class _DashboardPageState extends State<DashboardPage> {
+class _AnalyteDashboardState extends State<AnalyteDashboard> {
   double? value;
 
   Future<void> _fetchValue() async {
     try {
       final url = Uri.parse('http://${widget.deviceIp}/result');
       final response = await http.get(url);
+      debugPrint("Response: ${response.body}");
       if (response.statusCode == 200) {
         debugPrint("Response: ${response.body}");
         final data = json.decode(response.body);
