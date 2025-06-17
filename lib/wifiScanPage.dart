@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:bio_amp/options.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'tasks.dart';
@@ -48,7 +49,7 @@ class _WifiScanPageState extends State<WifiScanPage> {
       scanLogs.add("➡️ Pinging $ip...");
       debugPrint("➡️ Pinging $ip...");
       final response = await http.get(url).timeout(const Duration(milliseconds: 700));
-
+      debugPrint("Response from $ip: ${response.statusCode}");
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         if (data['name'] == 'BioAMP') {
@@ -81,7 +82,7 @@ class _WifiScanPageState extends State<WifiScanPage> {
       for (var addr in interface.addresses) {
         if (addr.type == InternetAddressType.IPv4 &&
             !addr.isLoopback &&
-            addr.address.startsWith("192.168")) {
+            addr.address.startsWith("192.168.137")) {
           return addr.address;
         }
       }
@@ -119,7 +120,7 @@ class _WifiScanPageState extends State<WifiScanPage> {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (_) => TaskPage(deviceIp: device['ip']!),
+                          builder: (_) => OptionsPage(deviceIp: device['ip']!),
                         ),
                       );
                     },
