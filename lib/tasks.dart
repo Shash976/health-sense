@@ -1,31 +1,24 @@
-import 'dart:convert';
+import 'package:bio_amp/analyteDashboard.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'dashboard.dart';
+import 'dart:convert';
+
+import 'constants.dart'; // includes Analyte and analytes list
 
 class TaskPage extends StatelessWidget {
   final String deviceIp;
 
-  TaskPage({super.key, required this.deviceIp});
+  const TaskPage({super.key, required this.deviceIp});
 
-  final List<Map<String, dynamic>> tasks = [
-    {'name': 'Bilirubin', 'code': 'BIL', 'min': 0.2, 'max': 1.3},
-    {'name': 'ALT', 'code': 'ALT', 'min': 10.0, 'max': 40.0},
-    {'name': 'AST', 'code': 'AST', 'min': 10.0, 'max': 35.0},
-  ];
+  void _showTestDialog(BuildContext context, Analyte analyte) {
+    final oxidationCtrl = TextEditingController(text: analyte.oxidationPotential.toString());
+    final minCtrl = TextEditingController(text: analyte.min.toString());
+    final maxCtrl = TextEditingController(text: analyte.max.toString());
+    final normalMinCtrl = TextEditingController(text: analyte.normalMinMGDL.toString());
+    final normalMaxCtrl = TextEditingController(text: analyte.normalMaxMGDL.toString());
+    final convFactorCtrl = TextEditingController(text: analyte.conversionFactor.toString());
+    final timeCtrl = TextEditingController(text: analyte.time.toString());
 
-  // Default parameters for each task
-  final Map<String, Map<String, dynamic>> defaultParams = {
-    'BIL': {'voltage': 3.3, 'time': 3000, 'gain': 4},
-    'ALT': {'voltage': 5.0, 'time': 4000, 'gain': 6},
-  };
-
-  // Shows a dialog to start a test, with option to customize parameters
-  void _showTestDialog(BuildContext context, String code, String name, double min, double max) {
-    final defaultConfig = defaultParams[code]!;
-    final TextEditingController voltageCtrl = TextEditingController(text: defaultConfig['voltage'].toString());
-    final TextEditingController timeCtrl = TextEditingController(text: defaultConfig['time'].toString());
-    final TextEditingController gainCtrl = TextEditingController(text: defaultConfig['gain'].toString());
     bool showFields = false;
 
     showDialog(
@@ -34,66 +27,75 @@ class TaskPage extends StatelessWidget {
         return StatefulBuilder(
           builder: (ctx, setState) {
             return AlertDialog(
-              title: Text('Start ${name} Test'),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // If not customizing, show options to use defaults or customize
-                  if (!showFields) ...[
-                    const Text('Do you want to customize parameters?'),
-                    const SizedBox(height: 10),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: ElevatedButton(
-                            onPressed: () {
-                              _startTest(
-                                context,
-                                code,
-                                name,
-                                deviceIp,
-                                defaultConfig,
-                                min,
-                                max,
-                              );
-                              Navigator.pop(ctx);
-                            },
-                            child: const Text("Use Defaults"),
+              title: Text('Start ${analyte.name} Test'),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (!showFields) ...[
+                      const Text('Customize parameters before starting?'),
+                      const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: ElevatedButton(
+                              onPressed: () {
+                                final config = {
+                                  'task': analyte.code,
+                                  'oxidationPotential': analyte.oxidationPotential,
+                                  'normalMinMGDL': analyte.normalMinMGDL,
+                                  'normalMaxMGDL': analyte.normalMaxMGDL,
+                                  'conversionFactor': analyte.conversionFactor,
+                                  'time': analyte.time,
+                                  'min': analyte.min,
+                                  'max': analyte.max,
+                                };
+                                _startTest(context, analyte, config);
+                                Navigator.pop(ctx);
+                              },
+                              child: const Text("Use Defaults"),
+                            ),
                           ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: ElevatedButton(
-                            onPressed: () => setState(() => showFields = true),
-                            child: const Text("Customize"),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: ElevatedButton(
+                              onPressed: () => setState(() => showFields = true),
+                              child: const Text("Customize"),
+                            ),
                           ),
-                        ),
-                      ],
-                    )
-                  ] else ...[
-                    // If customizing, show input fields for parameters
-                    _buildField("Voltage (V)", voltageCtrl),
-                    _buildField("Time (ms)", timeCtrl),
-                    _buildField("Gain", gainCtrl),
+                        ],
+                      ),
+                    ] else ...[
+                      _buildField("Oxidation Potential", oxidationCtrl),
+                      _buildField("Normal Min (mg/dL)", normalMinCtrl),
+                      _buildField("Normal Max (mg/dL)", normalMaxCtrl),
+                      _buildField("Conversion Factor", convFactorCtrl),
+                      _buildField("Test Time (ms)", timeCtrl),
+                      _buildField("Min Sensor Range", minCtrl),
+                      _buildField("Max Sensor Range", maxCtrl),
+                    ],
                   ],
-                ],
+                ),
               ),
               actions: showFields
                   ? [
-                // Actions for customized parameters: Cancel or Start
                 TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancel")),
                 ElevatedButton(
                   onPressed: () {
                     final config = {
-                      'task': code,
-                      'voltage': double.tryParse(voltageCtrl.text) ?? defaultConfig['voltage'],
-                      'time': int.tryParse(timeCtrl.text) ?? defaultConfig['time'],
-                      'gain': int.tryParse(gainCtrl.text) ?? defaultConfig['gain'],
+                      'task': analyte.code,
+                      'oxidationPotential': double.tryParse(oxidationCtrl.text) ?? analyte.oxidationPotential,
+                      'normalMinMGDL': double.tryParse(normalMinCtrl.text) ?? analyte.normalMinMGDL,
+                      'normalMaxMGDL': double.tryParse(normalMaxCtrl.text) ?? analyte.normalMaxMGDL,
+                      'conversionFactor': double.tryParse(convFactorCtrl.text) ?? analyte.conversionFactor,
+                      'time': int.tryParse(timeCtrl.text) ?? analyte.time,
+                      'min': double.tryParse(minCtrl.text) ?? analyte.min,
+                      'max': double.tryParse(maxCtrl.text) ?? analyte.max,
                     };
-                    _startTest(context, code, name, deviceIp, config, min, max);
+                    _startTest(context, analyte, config);
                     Navigator.pop(ctx);
                   },
-                  child: const Text("Start"),
+                  child: const Text("Start Test"),
                 ),
               ]
                   : null,
@@ -104,42 +106,48 @@ class TaskPage extends StatelessWidget {
     );
   }
 
-  // Builds a labeled input field for parameter customization
   Widget _buildField(String label, TextEditingController ctrl) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.only(bottom: 12),
       child: TextField(
         controller: ctrl,
         keyboardType: TextInputType.numberWithOptions(decimal: true),
-        decoration: InputDecoration(labelText: label, border: const OutlineInputBorder()),
+        decoration: InputDecoration(
+          labelText: label,
+          border: const OutlineInputBorder(),
+        ),
       ),
     );
   }
 
-  // Sends the test configuration to the device and navigates to the dashboard
-  void _startTest(BuildContext context, String code, String name, String ip, Map<String, dynamic> config, double min, double max) async {
+  void _startTest(BuildContext context, Analyte analyte, Map<String, dynamic> config) async {
     try {
-      await http.post(
-        Uri.parse('http://$ip/test'),
+      final response = await http.post(
+        Uri.parse('http://$deviceIp/test'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode(config),
       );
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => DashboardPage(
-            deviceIp: ip,
-            testName: name,
-            min: min,
-            max: max,
+
+      if (response.statusCode == 200) {
+        debugPrint("Sent parameters: $config");
+        debugPrint("Test started successfully: ${response.body}");
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => AnalyteDashboard(
+              deviceIp: deviceIp,
+              testName: analyte.name,
+              min: config['normalMinMGDL'] ?? analyte.normalMinMGDL,
+              max: config['normalMaxMGDL'] ?? analyte.normalMaxMGDL,
+            ),
           ),
-        ),
-      );
+        );
+      } else {
+        throw Exception("Status: ${response.statusCode}");
+      }
     } catch (e) {
-      // Show error if POST fails
-      debugPrint("POST failed: $e");
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Failed to send test to device")),
+        SnackBar(content: Text("Failed to start test: $e")),
       );
     }
   }
@@ -147,24 +155,17 @@ class TaskPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('All Tasks')),
+      appBar: AppBar(title: const Text('Select Test')),
       body: ListView.builder(
-        itemCount: tasks.length,
+        itemCount: analytes.length,
         itemBuilder: (context, index) {
-          final task = tasks[index];
+          final analyte = analytes[index];
           return ListTile(
-            title: Text(task['name']),
+            title: Text(analyte.name),
+            subtitle: Text("Normal: ${analyte.normalRange}"),
             trailing: ElevatedButton(
               child: const Text("Test"),
-              onPressed: () {
-                _showTestDialog(
-                  context,
-                  task['code'],
-                  task['name'],
-                  task['min'],
-                  task['max'],
-                );
-              },
+              onPressed: () => _showTestDialog(context, analyte),
             ),
           );
         },

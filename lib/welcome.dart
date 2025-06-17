@@ -1,5 +1,5 @@
 import 'package:bio_amp/login.dart';
-import 'package:bio_amp/wifi_scan_page.dart';
+import 'package:bio_amp/wifiScanPage.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
