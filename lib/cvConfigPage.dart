@@ -2,8 +2,21 @@ import 'dart:convert';
 import 'package:bio_amp/analyteDashboard.dart';
 import 'package:bio_amp/cvDashboard.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'analyteDashboard.dart';
+
+class RangeInputFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(TextEditingValue oldValue, TextEditingValue newValue) {
+    final text = newValue.text;
+    if (text == '-' || text == '' || text == '.' || text == '-.') return newValue;
+    final value = double.tryParse(text);
+    if (value == null) return oldValue;
+    if (value < -1.0 || value > 1.0) return oldValue;
+    return newValue;
+  }
+}
 
 class CVConfigPage extends StatefulWidget {
   final String deviceIp;
@@ -66,8 +79,24 @@ class _CVConfigPageState extends State<CVConfigPage> {
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            _buildField("Start Voltage (V)", startVoltageCtrl),
-            _buildField("End Voltage (V)", endVoltageCtrl),
+            _buildField(
+                "Start Voltage (V) (Enter between -1.0 to 1.0)",
+                startVoltageCtrl,
+                signed: true,
+                inputFormatters: [
+                  FilteringTextInputFormatter.allow(RegExp(r'^-?\d*\.?\d{0,2}')),
+                  RangeInputFormatter(),
+                ]
+            ),
+            _buildField(
+                "End Voltage (V) (Enter between -1.0 to 1.0)",
+                endVoltageCtrl,
+                signed: true,
+                inputFormatters: [
+                  FilteringTextInputFormatter.allow(RegExp(r'^-?\d*\.?\d{0,2}')),
+                  RangeInputFormatter(),
+              ]
+            ),
             _buildField("Scan Rate (mV/s)", scanRateCtrl),
             _buildField("Cycle Count", cyclesCtrl),
             const SizedBox(height: 20),
@@ -82,12 +111,16 @@ class _CVConfigPageState extends State<CVConfigPage> {
     );
   }
 
-  Widget _buildField(String label, TextEditingController controller) {
+
+
+
+  Widget _buildField(String label, TextEditingController controller, {bool decimal = true, bool signed = false, List<TextInputFormatter>? inputFormatters}) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: TextField(
         controller: controller,
-        keyboardType: TextInputType.numberWithOptions(decimal: true),
+        keyboardType: TextInputType.numberWithOptions(decimal: decimal, signed: signed),
+        inputFormatters: inputFormatters,
         decoration: InputDecoration(labelText: label, border: const OutlineInputBorder()),
       ),
     );
