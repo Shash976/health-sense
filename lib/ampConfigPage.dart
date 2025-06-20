@@ -26,8 +26,8 @@ class _AMPConfigPageState extends State<AMPConfigPage> {
     final config = {
       "mode": "AMP",
       "oxidationPotential": double.tryParse(oxidationPotentialCtrl.text) ?? 0.0,
-      "runTime": double.tryParse(runTimeCtrl.text) ?? 12,
-      "measureInterval": double.tryParse(measureIntervalCtrl.text) ?? 120,
+      "runTime": int.tryParse(runTimeCtrl.text) ?? 12,
+      "measureInterval": int.tryParse(measureIntervalCtrl.text) ?? 120,
     };
 
     try {
