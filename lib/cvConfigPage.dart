@@ -97,7 +97,7 @@ class _CVConfigPageState extends State<CVConfigPage> {
                   RangeInputFormatter(),
               ]
             ),
-            _buildField("Scan Rate (mV/s)", scanRateCtrl),
+            _buildField("Scan Rate (V/s)", scanRateCtrl),
             _buildField("Cycle Count", cyclesCtrl),
             const SizedBox(height: 20),
             ElevatedButton.icon(
