@@ -3,7 +3,6 @@ import 'dart:io';
 import 'package:bio_amp/options.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'tasks.dart';
 
 class WifiScanPage extends StatefulWidget {
   const WifiScanPage({super.key});
