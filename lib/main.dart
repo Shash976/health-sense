@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'dart:async';
-import 'package:bio_amp/login.dart';
 import 'package:bio_amp/welcome.dart';
 import 'package:flutter/material.dart';
 //import 'package:flutter_reactive_ble/flutter_reactive_ble.dart';
