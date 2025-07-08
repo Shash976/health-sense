@@ -1,8 +1,8 @@
 import 'dart:convert';
+import 'package:bio_amp/voltDashboard.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'analyteDashboard.dart';
-import 'dpvDashboardPage.dart';
 
 class DPVConfigPage extends StatefulWidget {
   final String deviceIp;
@@ -14,19 +14,19 @@ class DPVConfigPage extends StatefulWidget {
 }
 
 class _DPVConfigPageState extends State<DPVConfigPage> {
-  final startVoltageCtrl = TextEditingController(text: "0.0");
+  final startVoltageCtrl = TextEditingController(text: "-1.0");
   final endVoltageCtrl = TextEditingController(text: "1.0");
 
-  final stepHeightCtrl = TextEditingController(text: "100");
-  final pulseHeightCtrl = TextEditingController(text: "100");
+  final stepHeightCtrl = TextEditingController(text: "0.01");
+  final pulseHeightCtrl = TextEditingController(text: "0.05");
   final stepTimeCtrl = TextEditingController(text: "100");
-  final pulseWidthCtrl = TextEditingController(text: "3");
+  final pulseWidthCtrl = TextEditingController(text: "500");
 
   void _startDPV() async {
     debugPrint("Starting DPV with:");
     final config = {
       "mode": "DPV",
-      "startVoltage": double.tryParse(startVoltageCtrl.text) ?? 0.0,
+      "startVoltage": double.tryParse(startVoltageCtrl.text) ?? -0.5,
       "endVoltage": double.tryParse(endVoltageCtrl.text) ?? 1.0,
       "stepHeight": double.tryParse(stepHeightCtrl.text) ?? 0.1,
       "pulseHeight": double.tryParse(pulseHeightCtrl.text) ?? 0.05,
@@ -46,8 +46,9 @@ class _DPVConfigPageState extends State<DPVConfigPage> {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (_) => DPVDashboard(
+            builder: (_) => VoltDashboard(
               deviceIp: widget.deviceIp,
+              mode: "DPV",
             ),
           ),
         );
@@ -70,8 +71,8 @@ class _DPVConfigPageState extends State<DPVConfigPage> {
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            _buildField("Start Voltage (V)", startVoltageCtrl),
-            _buildField("End Voltage (V)", endVoltageCtrl),
+            _buildField("Start Voltage (V) [-1.0 to 1.0]", startVoltageCtrl),
+            _buildField("End Voltage (V) [-1.0 to 1.0]", endVoltageCtrl),
             _buildField("Step Height (V)", stepHeightCtrl),
             _buildField("Step Time (ms)", stepTimeCtrl),
             _buildField("Pulse Height (V)", pulseHeightCtrl),

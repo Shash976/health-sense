@@ -5,31 +5,37 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 
-class AMPDashboard extends StatefulWidget {
+class VoltDashboard extends StatefulWidget {
   final String deviceIp;
+  final String mode;
 
-  const AMPDashboard({super.key, required this.deviceIp});
+  const VoltDashboard({super.key, required this.deviceIp, required this.mode});
+
 
   @override
-  State<AMPDashboard> createState() => _AMPDashboardState();
+  State<VoltDashboard> createState() => _VoltDashboardState();
 }
 
-class _AMPDashboardState extends State<AMPDashboard> {
+class _VoltDashboardState extends State<VoltDashboard> {
   List<double> xValues = [];
   List<double> yValues = [];
   Timer? pollTimer;
+  late ScrollController _scrollController;
+
 
   @override
   void initState() {
     super.initState();
+    _scrollController = ScrollController();
     pollTimer = Timer.periodic(const Duration(milliseconds: 100), (_) => fetchPoint());
   }
 
   Future<void> fetchPoint() async {
     try {
-      final url = Uri.parse("http://${widget.deviceIp}/ampdata");
+
+      final url = Uri.parse("http://${widget.deviceIp}/${widget.mode.toLowerCase()}data");
       final response = await http.get(url);
-      debugPrint("AMP Response: ${response.body}");
+      debugPrint("${widget.mode.toUpperCase()} Response: ${response.body}");
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
 
@@ -38,15 +44,25 @@ class _AMPDashboardState extends State<AMPDashboard> {
             xValues.add((data["x"] as num).toDouble());
             yValues.add((data["y"] as num).toDouble());
           });
-        } else if (data["status"] == "amp_done") {
+          // Auto-scroll to the bottom
+          Future.delayed(Duration(milliseconds: 50), () {
+            if (_scrollController.hasClients) {
+              _scrollController.animateTo(
+                _scrollController.position.maxScrollExtent,
+                duration: Duration(milliseconds: 300),
+                curve: Curves.easeOut,
+              );
+            }
+          });
+        } else if (data["status"] == "${widget.mode.toLowerCase()}_done") {
           pollTimer?.cancel();
           // handle completion (snackbar, nav, plot, etc.)
         }
       }
     }  on SocketException {
-      debugPrint("Network error while fetching AMP data.");
+      debugPrint("Network error while fetching ${widget.mode.toUpperCase()} data.");
     } catch (e) {
-      debugPrint("Error polling AMP: $e");
+      debugPrint("Error polling ${widget.mode.toUpperCase()}: $e");
     }
   }
 
@@ -58,7 +74,7 @@ class _AMPDashboardState extends State<AMPDashboard> {
     final csv = csvLines.join("\n");
 
     final directory = await getApplicationDocumentsDirectory();
-    final filePath = "${directory.path}/amp_data.csv";
+    final filePath = "${directory.path}/${widget.mode.toLowerCase()}_data.csv";
     final file = File(filePath);
     await file.writeAsString(csv);
 
@@ -76,8 +92,9 @@ class _AMPDashboardState extends State<AMPDashboard> {
 
   @override
   Widget build(BuildContext context) {
+    final appBarTitle = "${widget.mode.toUpperCase()} Data Stream";
     return Scaffold(
-      appBar: AppBar(title: const Text("AMP Data Stream")),
+      appBar: AppBar(title: Text(appBarTitle)),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -86,6 +103,7 @@ class _AMPDashboardState extends State<AMPDashboard> {
             const SizedBox(height: 16),
             Expanded(
               child: ListView.builder(
+                controller: _scrollController,
                 itemCount: xValues.length,
                 itemBuilder: (context, index) {
                   return Text("(${xValues[index].toStringAsFixed(2)}, ${yValues[index].toStringAsFixed(2)})");
@@ -104,4 +122,3 @@ class _AMPDashboardState extends State<AMPDashboard> {
     );
   }
 }
-

@@ -1,8 +1,8 @@
 import 'dart:convert';
+import 'package:bio_amp/voltDashboard.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'analyteDashboard.dart';
-import 'ampDashboard.dart';
+
 
 class AMPConfigPage extends StatefulWidget {
   final String deviceIp;
@@ -42,8 +42,9 @@ class _AMPConfigPageState extends State<AMPConfigPage> {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (_) => AMPDashboard(
+            builder: (_) => VoltDashboard(
               deviceIp: widget.deviceIp,
+              mode: "amp",
             ),
           ),
         );
