@@ -2,7 +2,7 @@ import 'package:bio_amp/ampConfigPage.dart';
 import 'package:bio_amp/cvConfigPage.dart';
 import 'package:bio_amp/analyteDashboard.dart';
 import 'package:bio_amp/dpvConfigPage.dart';
-import 'package:bio_amp/tasks.dart';
+import 'package:bio_amp/analyteTasks.dart';
 import 'package:flutter/material.dart';
 
 class OptionsPage extends StatelessWidget {
