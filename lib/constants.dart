@@ -6,10 +6,10 @@ class Analyte {
   late final double normalMaxMGDL;
   late final double conversionFactor;
   late final int time;
-  late final double min;
-  late final double max;
+  late final double calibSlope;
+  late final double calibConstant;
 
-  Analyte(this.name, this.code, this.oxidationPotential, this.normalMinMGDL, this.normalMaxMGDL, this.conversionFactor, this.time, this.min, this.max)
+  Analyte(this.name, this.code, this.oxidationPotential, this.normalMinMGDL, this.normalMaxMGDL, this.conversionFactor, this.time, this.calibSlope, this.calibConstant)
       : assert(normalMinMGDL < normalMaxMGDL, 'Normal minimum must be less than maximum');
 
   @override
@@ -20,9 +20,9 @@ class Analyte {
 }
 
 List<Analyte> analytes = [
-  Analyte("Bilirubin", "BIL", 0.15, 0.1, 1.2, 17.1, 1000, 1.0, 5.2),  // 1000 ms for Bilirubin
-  Analyte("ALP", "ALP",       0.25, 44, 147, 0, 800, 2, 4),       // 800 ms for ALP
-  Analyte("ALT", "ALT",      0.30, 7, 56, 0, 1200, 5, 30),        // 1200 ms for ALT
+  Analyte("Bilirubin", "BIL", 0.15, 0.1, 1.2, 17.1, 1000,  9.2609e-9, 7.276e-7),  // 1000 ms for Bilirubin
+  Analyte("ALP", "ALP",       0.25, 44, 147, 0, 800, 9.2609e-9, 7.276e-7),       // 800 ms for ALP
+  Analyte("ALT", "ALT",      0.30, 7, 56, 0, 1200, 9.2609e-9, 7.276e-7),        // 1200 ms for ALT
 ];
 
 void updateAnalyte(String name, String parameter, double newValue){
@@ -43,6 +43,12 @@ void updateAnalyte(String name, String parameter, double newValue){
           break;
         case 'time':
           analyte.time = newValue.toInt();
+          break;
+        case 'calibSlope':
+          analyte.calibSlope = newValue;
+          break;
+        case 'calibConstant':
+          analyte.calibConstant = newValue;
           break;
         default:
           throw ArgumentError('Invalid parameter: $parameter');
@@ -66,6 +72,8 @@ Map<String, dynamic> serializeAnalyte(Analyte analyte) {
     'normalMaxMGDL': analyte.normalMaxMGDL,
     'conversionFactor': analyte.conversionFactor,
     'time': analyte.time,
+    'calibSlope': analyte.calibSlope,
+    'calibConstant': analyte.calibConstant,
   };
 }
 
@@ -79,6 +87,8 @@ List<Map<String, dynamic>> serializeAnalytes(){
       'normalMaxMGDL': a.normalMaxMGDL,
       'conversionFactor': a.conversionFactor,
       'time': a.time,
+      'calibSlope': a.calibSlope,
+      'calibConstant': a.calibConstant,
     };
   }).toList();
   return serialized;

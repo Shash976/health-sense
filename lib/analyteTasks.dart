@@ -12,12 +12,12 @@ class TaskPage extends StatelessWidget {
 
   void _showTestDialog(BuildContext context, Analyte analyte) {
     final oxidationCtrl = TextEditingController(text: analyte.oxidationPotential.toString());
-    final minCtrl = TextEditingController(text: analyte.min.toString());
-    final maxCtrl = TextEditingController(text: analyte.max.toString());
     final normalMinCtrl = TextEditingController(text: analyte.normalMinMGDL.toString());
     final normalMaxCtrl = TextEditingController(text: analyte.normalMaxMGDL.toString());
     final convFactorCtrl = TextEditingController(text: analyte.conversionFactor.toString());
     final timeCtrl = TextEditingController(text: analyte.time.toString());
+    final calibSlope = TextEditingController(text: analyte.calibSlope.toString());
+    final calibConstant = TextEditingController(text: analyte.calibConstant.toString());
 
     bool showFields = false;
 
@@ -47,8 +47,8 @@ class TaskPage extends StatelessWidget {
                                   'normalMaxMGDL': analyte.normalMaxMGDL,
                                   'conversionFactor': analyte.conversionFactor,
                                   'time': analyte.time,
-                                  'min': analyte.min,
-                                  'max': analyte.max,
+                                  'calibSlope': analyte.calibSlope,
+                                  'calibConstant': analyte.calibConstant,
                                 };
                                 _startTest(context, analyte, config);
                                 Navigator.pop(ctx);
@@ -71,8 +71,8 @@ class TaskPage extends StatelessWidget {
                       _buildField("Normal Max (mg/dL)", normalMaxCtrl),
                       _buildField("Conversion Factor", convFactorCtrl),
                       _buildField("Test Time (ms)", timeCtrl),
-                      _buildField("Min Sensor Range", minCtrl),
-                      _buildField("Max Sensor Range", maxCtrl),
+                      _buildField("Calibration Slope", calibSlope),
+                      _buildField("Calibration Constant", calibConstant),
                     ],
                   ],
                 ),
@@ -89,8 +89,8 @@ class TaskPage extends StatelessWidget {
                       'normalMaxMGDL': double.tryParse(normalMaxCtrl.text) ?? analyte.normalMaxMGDL,
                       'conversionFactor': double.tryParse(convFactorCtrl.text) ?? analyte.conversionFactor,
                       'time': int.tryParse(timeCtrl.text) ?? analyte.time,
-                      'min': double.tryParse(minCtrl.text) ?? analyte.min,
-                      'max': double.tryParse(maxCtrl.text) ?? analyte.max,
+                      'calibSlope': double.tryParse(calibSlope.text) ?? analyte.calibSlope,
+                      'calibConstant': double.tryParse(calibConstant.text) ?? analyte.calibConstant,
                     };
                     _startTest(context, analyte, config);
                     Navigator.pop(ctx);
@@ -101,6 +101,81 @@ class TaskPage extends StatelessWidget {
                   : null,
             );
           },
+        );
+      },
+    );
+  }
+
+  // Add this method to TaskPage
+  void _showAddAnalyteDialog(BuildContext context) {
+    final nameCtrl = TextEditingController();
+    final codeCtrl = TextEditingController();
+    final oxidationCtrl = TextEditingController();
+    final minCtrl = TextEditingController();
+    final maxCtrl = TextEditingController();
+    final normalMinCtrl = TextEditingController();
+    final normalMaxCtrl = TextEditingController();
+    final convFactorCtrl = TextEditingController();
+    final timeCtrl = TextEditingController();
+    final calibSlope = TextEditingController();
+    final calibConstant = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          title: const Text('Add New Analyte'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _buildField("Name", nameCtrl),
+                _buildField("Code", codeCtrl),
+                _buildField("Oxidation Potential", oxidationCtrl),
+                _buildField("Normal Min (mg/dL)", normalMinCtrl),
+                _buildField("Normal Max (mg/dL)", normalMaxCtrl),
+                _buildField("Conversion Factor", convFactorCtrl),
+                _buildField("Test Time (ms)", timeCtrl),
+                _buildField("Calibration Slope", calibSlope),
+                _buildField("Calibration Constant", calibConstant),
+                _buildField("Min Sensor Range", minCtrl),
+                _buildField("Max Sensor Range", maxCtrl),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancel")),
+            ElevatedButton(
+              onPressed: () {
+                final config = {
+                  'task': codeCtrl.text,
+                  'oxidationPotential': double.tryParse(oxidationCtrl.text) ?? 0.0,
+                  'normalMinMGDL': double.tryParse(normalMinCtrl.text) ?? 0.0,
+                  'normalMaxMGDL': double.tryParse(normalMaxCtrl.text) ?? 0.0,
+                  'conversionFactor': double.tryParse(convFactorCtrl.text) ?? 1.0,
+                  'time': int.tryParse(timeCtrl.text) ?? 1000,
+                  'calibSlope': double.tryParse(calibSlope.text) ?? 9.2609e-9,
+                  'calibConstant': double.tryParse(calibConstant.text) ?? 7.276e-7,
+                  'min': double.tryParse(minCtrl.text) ?? 0.0,
+                  'max': double.tryParse(maxCtrl.text) ?? 100.0,
+                };
+                final analyte = Analyte(
+                  nameCtrl.text,
+                  codeCtrl.text,
+                  double.tryParse(oxidationCtrl.text) ?? 0.0,
+                  double.tryParse(normalMinCtrl.text) ?? 0.0,
+                  double.tryParse(normalMaxCtrl.text) ?? 0.0,
+                  double.tryParse(convFactorCtrl.text) ?? 1.0,
+                  int.tryParse(timeCtrl.text) ?? 1000,
+                  double.tryParse(calibSlope.text) ?? 1.0,
+                  double.tryParse(calibConstant.text) ?? 0.0,
+                );
+                _startTest(context, analyte, config);
+                Navigator.pop(ctx);
+              },
+              child: const Text("Start Test"),
+            ),
+          ],
         );
       },
     );
@@ -169,6 +244,11 @@ class TaskPage extends StatelessWidget {
             ),
           );
         },
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => _showAddAnalyteDialog(context),
+        tooltip: 'Add Analyte',
+        child: const Icon(Icons.add),
       ),
     );
   }
