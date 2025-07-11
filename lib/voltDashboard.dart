@@ -67,14 +67,82 @@ class _VoltDashboardState extends State<VoltDashboard> {
   }
 
   void _downloadCSV() async {
-    final csvLines = <String>["x,y"];
-    for (int i = 0; i < xValues.length; i++) {
-      csvLines.add("${xValues[i]},${yValues[i]}");
+    final isCV = widget.mode.toLowerCase() == "cv";
+    String fileName;
+    double? concentration;
+
+    if (isCV) {
+      concentration = await showDialog<double>(
+        context: context,
+        builder: (context) {
+          final controller = TextEditingController();
+          return AlertDialog(
+            title: const Text("Enter Concentration"),
+            content: TextField(
+              controller: controller,
+              keyboardType: TextInputType.numberWithOptions(decimal: true),
+              decoration: const InputDecoration(
+                hintText: "e.g. 0.1 or 5.2",
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text("Cancel"),
+              ),
+              TextButton(
+                onPressed: () {
+                  final value = double.tryParse(controller.text.replaceAll(',', '.'));
+                  if (value != null) {
+                    Navigator.of(context).pop(value);
+                  }
+                },
+                child: const Text("OK"),
+              ),
+            ],
+          );
+        },
+      );
+
+      if (concentration == null) {
+        // User cancelled
+        return;
+      }
+      final concStr = concentration.toString().replaceAll('.', '_');
+      fileName = "cv_data_$concStr.csv";
+    } else {
+      fileName = "${widget.mode.toLowerCase()}_data.csv";
+    }
+
+    final csvLines = <String>[isCV ? "x,y,cycle" : "x,y"];
+    if (isCV && xValues.isNotEmpty) {
+      // Calculate cycles based on xValues
+      final double startX = xValues[0];
+      debugPrint("Start X: $startX");
+      int cycle = 1;
+      bool passedStart = false;
+      double tolerance = 1e-8; // floating point tolerance
+      debugPrint("Tolerance: $tolerance");
+      for (int i = 0; i < xValues.length; i++) {
+        double x = xValues[i];
+        if (i > 0) {
+          // Check if we crossed the startX (from either direction)
+          if ((x-startX).abs() < tolerance) {
+             cycle++;
+             debugPrint("Cycle incremented to $cycle at index $i with x=$x");
+          }
+        }
+        csvLines.add("${xValues[i]},${yValues[i]},$cycle");
+      }
+    } else {
+      for (int i = 0; i < xValues.length; i++) {
+        csvLines.add("${xValues[i]},${yValues[i]}");
+      }
     }
     final csv = csvLines.join("\n");
 
     final directory = await getApplicationDocumentsDirectory();
-    final filePath = "${directory.path}/${widget.mode.toLowerCase()}_data.csv";
+    final filePath = "${directory.path}/$fileName";
     final file = File(filePath);
     await file.writeAsString(csv);
 
@@ -82,7 +150,6 @@ class _VoltDashboardState extends State<VoltDashboard> {
       SnackBar(content: Text("CSV saved to: $filePath")),
     );
   }
-
 
   @override
   void dispose() {
@@ -106,7 +173,7 @@ class _VoltDashboardState extends State<VoltDashboard> {
                 controller: _scrollController,
                 itemCount: xValues.length,
                 itemBuilder: (context, index) {
-                  return Text("(${xValues[index].toStringAsFixed(2)}, ${yValues[index].toStringAsFixed(2)})");
+                  return Text("(${xValues[index].toString()}, ${yValues[index].toString()})");
                 },
               ),
             ),
