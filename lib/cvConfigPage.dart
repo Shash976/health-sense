@@ -1,10 +1,8 @@
 import 'dart:convert';
-import 'package:bio_amp/analyteDashboard.dart';
 import 'package:bio_amp/voltDashboard.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
-import 'analyteDashboard.dart';
 
 class RangeInputFormatter extends TextInputFormatter {
   @override

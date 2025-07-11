@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'package:bio_amp/voltDashboard.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'analyteDashboard.dart';
 
 class DPVConfigPage extends StatefulWidget {
   final String deviceIp;
