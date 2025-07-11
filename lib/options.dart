@@ -1,10 +1,10 @@
-import 'package:bio_amp/ampConfigPage.dart';
-import 'package:bio_amp/cvConfigPage.dart';
-import 'package:bio_amp/dpvConfigPage.dart';
+import 'package:bio_amp/amp_config_page.dart';
+import 'package:bio_amp/cv_config_page.dart';
+import 'package:bio_amp/dpv_config_page.dart';
 import 'package:bio_amp/analyteTasks.dart';
 import 'package:flutter/material.dart';
 
-import 'analysisPage.dart';
+import 'analysis_page.dart';
 
 class OptionsPage extends StatelessWidget {
   final String deviceIp;

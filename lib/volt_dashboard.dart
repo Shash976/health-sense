@@ -124,7 +124,6 @@ class _VoltDashboardState extends State<VoltDashboard> {
       final double startX = xValues[0];
       debugPrint("Start X: $startX");
       int cycle = 1;
-      bool passedStart = false;
       double tolerance = 1e-8; // floating point tolerance
       debugPrint("Tolerance: $tolerance");
       for (int i = 0; i < xValues.length; i++) {

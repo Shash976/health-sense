@@ -1,4 +1,4 @@
-import 'package:bio_amp/voltConfigPage.dart';
+import 'package:bio_amp/volt_config_page.dart';
 import 'package:flutter/material.dart';
 
 class AMPConfigPage extends StatelessWidget {

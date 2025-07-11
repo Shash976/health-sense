@@ -1,9 +1,9 @@
-import 'package:bio_amp/analyteDashboard.dart';
+import 'package:bio_amp/analyte_dashboard.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
-import 'constants.dart'; // includes Analyte and analytes list
+import 'analyte_constants.dart'; // includes Analyte and analytes list
 
 class TaskPage extends StatelessWidget {
   final String deviceIp;
