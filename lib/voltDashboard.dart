@@ -11,7 +11,6 @@ class VoltDashboard extends StatefulWidget {
 
   const VoltDashboard({super.key, required this.deviceIp, required this.mode});
 
-
   @override
   State<VoltDashboard> createState() => _VoltDashboardState();
 }
@@ -22,18 +21,21 @@ class _VoltDashboardState extends State<VoltDashboard> {
   Timer? pollTimer;
   late ScrollController _scrollController;
 
-
   @override
   void initState() {
     super.initState();
     _scrollController = ScrollController();
-    pollTimer = Timer.periodic(const Duration(milliseconds: 100), (_) => fetchPoint());
+    pollTimer = Timer.periodic(
+      const Duration(milliseconds: 100),
+      (_) => fetchPoint(),
+    );
   }
 
   Future<void> fetchPoint() async {
     try {
-
-      final url = Uri.parse("http://${widget.deviceIp}/${widget.mode.toLowerCase()}data");
+      final url = Uri.parse(
+        "http://${widget.deviceIp}/${widget.mode.toLowerCase()}data",
+      );
       final response = await http.get(url);
       debugPrint("${widget.mode.toUpperCase()} Response: ${response.body}");
       if (response.statusCode == 200) {
@@ -59,8 +61,10 @@ class _VoltDashboardState extends State<VoltDashboard> {
           // handle completion (snackbar, nav, plot, etc.)
         }
       }
-    }  on SocketException {
-      debugPrint("Network error while fetching ${widget.mode.toUpperCase()} data.");
+    } on SocketException {
+      debugPrint(
+        "Network error while fetching ${widget.mode.toUpperCase()} data.",
+      );
     } catch (e) {
       debugPrint("Error polling ${widget.mode.toUpperCase()}: $e");
     }
@@ -81,9 +85,7 @@ class _VoltDashboardState extends State<VoltDashboard> {
             content: TextField(
               controller: controller,
               keyboardType: TextInputType.numberWithOptions(decimal: true),
-              decoration: const InputDecoration(
-                hintText: "e.g. 0.1 or 5.2",
-              ),
+              decoration: const InputDecoration(hintText: "e.g. 0.1 or 5.2"),
             ),
             actions: [
               TextButton(
@@ -92,7 +94,9 @@ class _VoltDashboardState extends State<VoltDashboard> {
               ),
               TextButton(
                 onPressed: () {
-                  final value = double.tryParse(controller.text.replaceAll(',', '.'));
+                  final value = double.tryParse(
+                    controller.text.replaceAll(',', '.'),
+                  );
                   if (value != null) {
                     Navigator.of(context).pop(value);
                   }
@@ -127,9 +131,9 @@ class _VoltDashboardState extends State<VoltDashboard> {
         double x = xValues[i];
         if (i > 0) {
           // Check if we crossed the startX (from either direction)
-          if ((x-startX).abs() < tolerance) {
-             cycle++;
-             debugPrint("Cycle incremented to $cycle at index $i with x=$x");
+          if ((x - startX).abs() < tolerance) {
+            cycle++;
+            debugPrint("Cycle incremented to $cycle at index $i with x=$x");
           }
         }
         csvLines.add("${xValues[i]},${yValues[i]},$cycle");
@@ -146,9 +150,9 @@ class _VoltDashboardState extends State<VoltDashboard> {
     final file = File(filePath);
     await file.writeAsString(csv);
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text("CSV saved to: $filePath")),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text("CSV saved to: $filePath")));
   }
 
   @override
@@ -173,7 +177,9 @@ class _VoltDashboardState extends State<VoltDashboard> {
                 controller: _scrollController,
                 itemCount: xValues.length,
                 itemBuilder: (context, index) {
-                  return Text("(${xValues[index].toString()}, ${yValues[index].toString()})");
+                  return Text(
+                    "(${xValues[index].toString()}, ${yValues[index].toString()})",
+                  );
                 },
               ),
             ),
