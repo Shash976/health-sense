@@ -18,82 +18,97 @@ class OptionsPage extends StatelessWidget {
         title: const Text('Options'),
         centerTitle: true,
       ),
-      body: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Padding(padding: EdgeInsets.all(10.0),
-            child: ElevatedButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => TaskPage(
-                      deviceIp: deviceIp
-                    ),
-                  ),
-                );
-              },
-              child: const Text('Analyte Mode'),
-            ),
-          ),
-          Padding(padding: EdgeInsets.all(10.0),
-            child: ElevatedButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => AMPConfigPage(
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Padding(padding: EdgeInsets.all(10.0),
+              child: ElevatedButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => TaskPage(
                         deviceIp: deviceIp
+                      ),
                     ),
-                  ),
-                );
-              },
-              child: const Text('Amperometry Mode'),
+                  );
+                },
+                child: const Text('Analyte Mode'),
+              ),
             ),
-          ),
-          Padding(padding: EdgeInsets.all(10.0),
-            child: ElevatedButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => CVConfigPage(
-                      deviceIp: deviceIp,
+            Padding(padding: EdgeInsets.all(10.0),
+              child: ElevatedButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => AMPConfigPage(
+                          deviceIp: deviceIp
+                      ),
                     ),
-                  ),
-                );
-              },
-              child: const Text('CV Mode'),
+                  );
+                },
+                child: const Text('Amperometry Mode'),
+              ),
             ),
-          ),
-          Padding(padding: EdgeInsets.all(10.0),
-            child: ElevatedButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => AnalysisPage()
-                  ),
-                );
-              },
-              child: const Text('CV Analysis'),
+            Padding(padding: EdgeInsets.all(10.0),
+              child: ElevatedButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => CVConfigPage(
+                        deviceIp: deviceIp,
+                      ),
+                    ),
+                  );
+                },
+                child: const Text('CV Mode'),
+              ),
             ),
-          ),
-          Padding(padding: EdgeInsets.all(10.0),
-            child: ElevatedButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => DPVConfigPage(deviceIp: deviceIp)
-                  ),
-                );
-              },
-              child: const Text('DPV Mode'),
+            Padding(padding: EdgeInsets.all(10.0),
+              child: ElevatedButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => AnalysisPage()
+                    ),
+                  );
+                },
+                child: const Text('CV Analysis'),
+              ),
             ),
-          ),
-        ],
+            Padding(padding: EdgeInsets.all(10.0),
+              child: ElevatedButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => DPVConfigPage(deviceIp: deviceIp)
+                    ),
+                  );
+                },
+                child: const Text('DPV Mode'),
+              ),
+            ),
+            Padding(padding: EdgeInsets.all(10.0),
+              child: ElevatedButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) => DPVConfigPage(deviceIp: deviceIp)
+                    ),
+                  );
+                },
+                child: const Text('Wi-Fi Scan'),
+              ),
+            ),
+          ]
+        )
       )
     );
   }
