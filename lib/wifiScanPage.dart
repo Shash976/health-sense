@@ -99,7 +99,7 @@ class _WifiScanPageState extends State<WifiScanPage> {
           children: [
             ElevatedButton(
               onPressed: isScanning ? null : _scanNetwork,
-              child: Text(isScanning ? 'Scanning...' : 'Scan Network'),
+              child: Text(isScanning ? 'Scanning...' : 'Re-Scan'),
             ),
             const SizedBox(height: 20),
             const Text("Discovered Devices", style: TextStyle(fontWeight: FontWeight.bold)),
