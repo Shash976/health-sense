@@ -4,6 +4,8 @@ import 'package:bio_amp/dpvConfigPage.dart';
 import 'package:bio_amp/analyteTasks.dart';
 import 'package:flutter/material.dart';
 
+import 'analysisPage.dart';
+
 class OptionsPage extends StatelessWidget {
   final String deviceIp;
 
@@ -63,6 +65,19 @@ class OptionsPage extends StatelessWidget {
                 );
               },
               child: const Text('CV Mode'),
+            ),
+          ),
+          Padding(padding: EdgeInsets.all(10.0),
+            child: ElevatedButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => AnalysisPage()
+                  ),
+                );
+              },
+              child: const Text('CV Analysis'),
             ),
           ),
           Padding(padding: EdgeInsets.all(10.0),
