@@ -23,22 +23,23 @@ class _WifiScanPageState extends State<WifiScanPage> {
       scanLogs = ["🔍 Starting scan..."];
     });
 
-    final localIp = await _getLocalIp();
-    if (localIp == null) {
+    final localIps = await _getAllLocalIps();
+    if (localIps.isEmpty) {
       setState(() {
         isScanning = false;
-        scanLogs.add("❌ Could not find local IP.");
+        scanLogs.add("❌ Could not find any local IPs.");
       });
       return;
     }
 
-    final subnet = localIp.substring(0, localIp.lastIndexOf('.') + 1);
-    scanLogs.add("📡 Subnet: $subnet");
-
-    for (int i = 1; i <= 254; i++) {
-      final ip = '$subnet$i';
-      _checkDevice(ip);
-      await Future.delayed(const Duration(milliseconds: 20)); // Avoid flooding
+    for (final localIp in localIps) {
+      final subnet = localIp.substring(0, localIp.lastIndexOf('.') + 1);
+      scanLogs.add("📡 Scanning subnet: $subnet");
+      for (int i = 1; i <= 254; i++) {
+        final ip = '$subnet$i';
+        _checkDevice(ip);
+        await Future.delayed(const Duration(milliseconds: 20)); // Avoid flooding
+      }
     }
   }
 
@@ -76,17 +77,16 @@ class _WifiScanPageState extends State<WifiScanPage> {
     }
   }
 
-  Future<String?> _getLocalIp() async {
+  Future<List<String>> _getAllLocalIps() async {
+    List<String> ips = [];
     for (var interface in await NetworkInterface.list()) {
       for (var addr in interface.addresses) {
-        if (addr.type == InternetAddressType.IPv4 &&
-            !addr.isLoopback &&
-            addr.address.startsWith("192.168.137")) {
-          return addr.address;
+        if (addr.type == InternetAddressType.IPv4 && !addr.isLoopback) {
+          ips.add(addr.address);
         }
       }
     }
-    return null;
+    return ips;
   }
 
   @override
@@ -99,7 +99,7 @@ class _WifiScanPageState extends State<WifiScanPage> {
           children: [
             ElevatedButton(
               onPressed: isScanning ? null : _scanNetwork,
-              child: Text(isScanning ? 'Scanning...' : 'Re-Scan'),
+              child: Text(isScanning ? 'Scanning...' : 'Scan Network'),
             ),
             const SizedBox(height: 20),
             const Text("Discovered Devices", style: TextStyle(fontWeight: FontWeight.bold)),
