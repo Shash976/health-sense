@@ -70,12 +70,14 @@ int graphHeight = 220;
 
 // Analyte struct
 struct Analyte {
-  String name;
-  float oxidationPotential;
-  float normalMin_mgdL;
-  float normalMax_mgdL;
-  float conversionFactor;
-  unsigned long voltageGenTime;  // New parameter for voltage generation time
+    String name;
+    float oxidationPotential;
+    float normalMin_mgdL;
+    float normalMax_mgdL;
+    float conversionFactor;
+    unsigned long voltageGenTime;  // New parameter for voltage generation time
+    float calibSlope;
+    float calibConstant;
 };
 
 Analyte analyte;
@@ -141,13 +143,13 @@ bool demoMode = false;
 int analyteCurrentPage = 0;
 
 Analyte analytes[] = {
-  {"Bilirubin", 0.15, 0.1, 1.2, 17.1, 1000},  // 1000 ms for Bilirubin
-  {"ALP",       0.25, 44, 147, 0, 800},       // 800 ms for ALP
-  {"ALT",       0.30, 7, 56, 0, 1200},        // 1200 ms for ALT
-  {"AST",       0.27, 10, 40, 0, 1100},       // 1100 ms for AST
-  {"Phosphorus",0.22, 2.5, 4.5, 0.3229, 900}, // 900 ms for Phosphorus
-  {"Albumin",   0.18, 3.5, 5.0, 150, 1500},  // 1500 ms for Albumin
-  {"Ascorbic",  0.20, 0.4, 1.5, 56.78, 700}  // 700 ms for Ascorbic
+   {"Bilirubin", 0.15, 0.1, 1.2, 17.1, 1000, 9.2609e-9, 7.276e-7},  // 1000 ms for Bilirubin
+   {"ALP",       0.25, 44, 147, 0, 800, 9.2609e-9, 7.276e-7},       // 800 ms for ALP
+   {"ALT",       0.30, 7, 56, 0, 1200, 9.2609e-9, 7.276e-7},        // 1200 ms for ALT
+   {"AST",       0.27, 10, 40, 0, 1100, 9.2609e-9, 7.276e-7},       // 1100 ms for AST
+   {"Phosphorus",0.22, 2.5, 4.5, 0.3229, 900, 9.2609e-9, 7.276e-7}, // 900 ms for Phosphorus
+   {"Albumin",   0.18, 3.5, 5.0, 150, 1500, 9.2609e-9, 7.276e-7},  // 1500 ms for Albumin
+   {"Ascorbic",  0.20, 0.4, 1.5, 56.78, 700, 9.2609e-9, 7.276e-7}  // 700 ms for Ascorbic
 };
 const int NUM_ANALYTES = sizeof(analytes)/sizeof(analytes[0]);
 
@@ -454,21 +456,21 @@ void drawWelcomeScreen() {
 void drawGraphAxes() {
   tft.fillScreen(ILI9341_WHITE);
 
-  // Draw graph box
-  tft.drawRect(graphX, graphY, graphWidth, graphHeight, ILI9341_BLACK);
-  String mode = (currentMode==CV) ? "CV" : "DPV";
-  String heading  = mode + " V vs I (μA)";
-  // Title
-  tft.setTextSize(2);
-  tft.setTextColor(ILI9341_BLACK);
-  tft.setCursor(5, 5);
-  if (currentMode == CV) {
-    tft.print("CV: I (μA) vs V (V)");
-  } else if (currentMode == DPV) {
-    tft.print("DPV: I (μA) vs V (V)");
-  } else if (currentMode == AMPEROMETRY){
-    tft.print("Amperometric: I (μA) vs Time (s)");
-  }
+    // Draw graph box
+    tft.drawRect(graphX, graphY, graphWidth, graphHeight, ILI9341_BLACK);
+    String mode = (currentMode==CV) ? "CV" : "DPV";
+    String heading  = mode + " V vs I (uA)";
+    // Title
+    tft.setTextSize(2);
+    tft.setTextColor(ILI9341_BLACK);
+    tft.setCursor(5, 5);
+    if (currentMode == CV) {
+        tft.print("CV: I (uA) vs V (V)");
+    } else if (currentMode == DPV) {
+        tft.print("DPV: I (uA) vs V (V)");
+    } else if (currentMode == AMPEROMETRY){
+        tft.print("Amperometric: I (uA) vs Time (s)");
+    }
 
   if (currentMode == DPV | currentMode == CV) {
     // === Y-axis: -1000 to +1000 uA with ticks at every 500 ===
@@ -1169,16 +1171,18 @@ void performCVStep() {
   int dacVal = (int)((v / V_REF) * DAC_RESOLUTION);
   dac.setVoltage(dacVal, false);
 
-  int16_t adc = ads.readADC_SingleEnded(0);
-  float mV = adc * ADS_GAIN;
-  float current_uA = (mV / FEEDBACK_RESISTOR) * 1000.0;
+    int16_t adc = ads.readADC_SingleEnded(0) * -1;
+    float mV = adc * ADS_GAIN;
+    float current_uA = (mV / FEEDBACK_RESISTOR) * 1000.0;
 
   currentVoltage = v-V_SHIFT; // moves back to -1.0 to 1.0
   currentCurrent = current_uA;
   newCVPointAvailable = true;
 
-  plotPoint(v, current_uA);
-  Serial.print("New Point: "); Serial.print(v - V_SHIFT); Serial.print("V, "); Serial.print(current_uA); Serial.println("μA");
+    float plotV = (v*-1) + V_SHIFT;
+
+    plotPoint(plotV, current_uA);
+    Serial.print("New Point: "); Serial.print(v - V_SHIFT); Serial.print("V, "); Serial.print(current_uA); Serial.println("uA");
 
   stepIndex++;
   if (stepIndex >= totalSteps) {
@@ -1256,39 +1260,39 @@ void startDPV() {
 }
 
 void performDPVStep(){
-  // Shift voltage by +1V for level shifter
-  float shiftedVoltage = dpvVoltage; // in range of 0 to 2
-  // Set the base dpvVoltage for the step
-  int dacValue = voltageToDAC(shiftedVoltage);
-  dac.setVoltage(dacValue, false);
-  delay(STEP_TIME);
-  // Measure current before the pulse
-  float currentBefore_mV = averageADCReading();
-  // Apply the pulse
-  dacValue = voltageToDAC(shiftedVoltage + PULSE_HEIGHT);
-  dac.setVoltage(dacValue, false);
-  delay(PULSE_WIDTH);
-  // Measure current after the pulse
-  float currentAfter_mV = averageADCReading();
-  // Calculate differential current (I after - I before)
-  float differentialCurrent_mA = (currentAfter_mV - currentBefore_mV) / 1000.0;
-  // Send data to Serial Monitor
-  Serial.print("dpvVoltage: ");
-  Serial.print(dpvVoltage-V_SHIFT, 2);
-  Serial.print(" V, Differential Current: ");
-  Serial.print(differentialCurrent_mA, 6);
-  Serial.println(" mA");
-  currentCurrent = differentialCurrent_mA*1000; // in μA
-  currentVoltage = dpvVoltage - V_SHIFT; // shifted to -1.0 to 1.0
-  newDPVPointAvailable = true;
-  // Display data on OLED
-  plotPoint(dpvVoltage, currentCurrent); // plot point function needs points in 0 to 2 and current in uA
-  // Increment dpvVoltage by step height
-  if (START_VOLTAGE < END_VOLTAGE) {
-    dpvVoltage += STEP_HEIGHT;
-  } else {
-    dpvVoltage -= STEP_HEIGHT;
-  }
+    // Shift voltage by +1V for level shifter
+    float shiftedVoltage = dpvVoltage; // in range of 0 to 2
+    // Set the base dpvVoltage for the step
+    int dacValue = voltageToDAC(shiftedVoltage);
+    dac.setVoltage(dacValue, false);
+    delay(STEP_TIME);
+    // Measure current before the pulse
+    float currentBefore_mV = averageADCReading();
+    // Apply the pulse
+    dacValue = voltageToDAC(shiftedVoltage + PULSE_HEIGHT);
+    dac.setVoltage(dacValue, false);
+    delay(PULSE_WIDTH);
+    // Measure current after the pulse
+    float currentAfter_mV = averageADCReading();
+    // Calculate differential current (I after - I before)
+    float differentialCurrent_mA = (currentAfter_mV - currentBefore_mV) / 1000.0;
+    // Send data to Serial Monitor
+    Serial.print("dpvVoltage: ");
+    Serial.print(dpvVoltage-V_SHIFT, 2);
+    Serial.print(" V, Differential Current: ");
+    Serial.print(differentialCurrent_mA, 6);
+    Serial.println(" mA");
+    currentCurrent = differentialCurrent_mA*1000; // in uA
+    currentVoltage = dpvVoltage - V_SHIFT; // shifted to -1.0 to 1.0
+    newDPVPointAvailable = true;
+    // Display data on OLED
+    plotPoint(dpvVoltage, currentCurrent); // plot point function needs points in 0 to 2 and current in uA
+    // Increment dpvVoltage by step height
+    if (START_VOLTAGE < END_VOLTAGE) {
+        dpvVoltage += STEP_HEIGHT;
+    } else {
+        dpvVoltage -= STEP_HEIGHT;
+    }
 }
 
 int voltageToDAC(float voltage) {
@@ -1333,13 +1337,14 @@ void performTest(Analyte a) {
   // Use the analyte-specific voltage generation time
   delay(a.voltageGenTime);  // This is where we use the voltage generation time
 
-  int16_t adc = ads.readADC_SingleEnded(0);
-  float mV = 1 * adc * ADS_GAIN * 0.2;
-  float current_mA = mV / FEEDBACK_RESISTOR;
-  float Concentration = mapFloat(current_mA, 0.0001, 0.002, a.normalMin_mgdL - 0.2, a.normalMax_mgdL + 0.2);
-  result = Concentration;
-  Serial.println("Test is done");
-  showResult(a, Concentration, current_mA);
+    int16_t adc = ads.readADC_SingleEnded(0);
+    float mV = 1 * adc * ADS_GAIN * 0.2;
+    float current_mA = mV / FEEDBACK_RESISTOR;
+    float current_uA = current_mA *1000;
+    float Concentration = (current_uA-a.calibConstant) / a.calibSlope; // y=mx+c -> x = (y-c)/m
+    result = Concentration;
+    Serial.println("Test is done");
+    showResult(a, Concentration, current_mA);
 }
 
 void showResult(Analyte a, float mgdL, float current_mA) {
@@ -1561,12 +1566,14 @@ void handlePostTest(WiFiClient& client) {
   StaticJsonDocument<256> doc;
   if (deserializeJson(doc, body)) return respondJSON(client, "{\"status\":\"error\",\"message\":\"invalid JSON\"}", 400);
 
-  analyte.name = (const char*)doc["task"];
-  analyte.oxidationPotential = doc["oxidationPotential"].as<float>();
-  analyte.normalMin_mgdL = doc["normalMinMGDL"].as<float>();
-  analyte.normalMax_mgdL = doc["normalMaxMGDL"].as<float>();
-  analyte.conversionFactor = doc["conversionFactor"].as<float>();
-  analyte.voltageGenTime = doc["time"].as<unsigned long>();
+    analyte.name = (const char*)doc["task"];
+    analyte.oxidationPotential = doc["oxidationPotential"].as<float>();
+    analyte.normalMin_mgdL = doc["normalMinMGDL"].as<float>();
+    analyte.normalMax_mgdL = doc["normalMaxMGDL"].as<float>();
+    analyte.conversionFactor = doc["conversionFactor"].as<float>();
+    analyte.voltageGenTime = doc["time"].as<unsigned long>();
+    analyte.calibSlope = doc["calibSlope"].as<float>();
+    analyte.calibConstant = doc["calibConstant"].as<float>();
 
   Serial.println(body);
   result = 0.0;
