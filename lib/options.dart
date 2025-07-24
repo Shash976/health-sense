@@ -2,6 +2,7 @@ import 'package:bio_amp/amp_config_page.dart';
 import 'package:bio_amp/cv_config_page.dart';
 import 'package:bio_amp/dpv_config_page.dart';
 import 'package:bio_amp/analyteTasks.dart';
+import 'package:bio_amp/wifi_scan_page.dart';
 import 'package:flutter/material.dart';
 
 import 'analysis_page.dart';
@@ -44,21 +45,6 @@ class OptionsPage extends StatelessWidget {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => AMPConfigPage(
-                          deviceIp: deviceIp
-                      ),
-                    ),
-                  );
-                },
-                child: const Text('Amperometry Mode'),
-              ),
-            ),
-            Padding(padding: EdgeInsets.all(10.0),
-              child: ElevatedButton(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
                       builder: (_) => CVConfigPage(
                         deviceIp: deviceIp,
                       ),
@@ -74,20 +60,7 @@ class OptionsPage extends StatelessWidget {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => AnalysisPage()
-                    ),
-                  );
-                },
-                child: const Text('CV Analysis'),
-              ),
-            ),
-            Padding(padding: EdgeInsets.all(10.0),
-              child: ElevatedButton(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => DPVConfigPage(deviceIp: deviceIp)
+                        builder: (_) => DPVConfigPage(deviceIp: deviceIp)
                     ),
                   );
                 },
@@ -100,7 +73,35 @@ class OptionsPage extends StatelessWidget {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                        builder: (_) => DPVConfigPage(deviceIp: deviceIp)
+                      builder: (_) => AMPConfigPage(
+                          deviceIp: deviceIp
+                      ),
+                    ),
+                  );
+                },
+                child: const Text('Amperometry Mode'),
+              ),
+            ),
+            Padding(padding: EdgeInsets.all(10.0),
+              child: ElevatedButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => AnalysisPage()
+                    ),
+                  );
+                },
+                child: const Text('Calibration'),
+              ),
+            ),
+            Padding(padding: EdgeInsets.all(10.0),
+              child: ElevatedButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) => WifiScanPage()
                     ),
                   );
                 },
