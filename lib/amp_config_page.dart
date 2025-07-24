@@ -10,8 +10,8 @@ class AMPConfigPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final fields = [
       VoltConfigField(label: "Oxidation Potential (V)", controller: TextEditingController(text: "0.0")),
-      VoltConfigField(label: "Run Time (s)", controller: TextEditingController(text: "100")),
-      VoltConfigField(label: "Measure Interval (s)", controller: TextEditingController(text: "100")),
+      VoltConfigField(label: "Run Time (ms)", controller: TextEditingController(text: "100")),
+      VoltConfigField(label: "Measure Interval (ms)", controller: TextEditingController(text: "100")),
     ];
     return VoltConfigPage(
       deviceIp: deviceIp,

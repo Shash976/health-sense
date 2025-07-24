@@ -12,7 +12,7 @@ class CVConfigPage extends StatelessWidget {
     final fields = [
       VoltConfigField(
         label: "Start Voltage (V) (Enter between -1.0 to 1.0)",
-        controller: TextEditingController(text: "0.0"),
+        controller: TextEditingController(text: "-1.0"),
         inputFormatters: [
           FilteringTextInputFormatter.allow(RegExp(r'^-?\d*\.?\d{0,2}')),
           RangeInputFormatter(),
@@ -27,8 +27,8 @@ class CVConfigPage extends StatelessWidget {
         ],
       ),
       VoltConfigField(
-        label: "Scan Rate (V/s)",
-        controller: TextEditingController(text: "100"),
+        label: "Scan Rate (mV/s)",
+        controller: TextEditingController(text: "0.1"),
       ),
       VoltConfigField(
         label: "Cycle Count",
