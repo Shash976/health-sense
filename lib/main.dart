@@ -1,6 +1,5 @@
 import 'package:bio_amp/welcome.dart';
 import 'package:flutter/material.dart';
-//import 'package:flutter_reactive_ble/flutter_reactive_ble.dart';
 
 void main() {
   runApp(const App());
@@ -14,7 +13,7 @@ class App extends StatelessWidget {
     return MaterialApp(
       title: 'Health Sense',
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
         useMaterial3: true,
       ),
       home: const WelcomePage(),
