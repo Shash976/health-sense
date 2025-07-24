@@ -42,7 +42,7 @@ class WelcomePage extends StatelessWidget {
             left: 0,
             right: 0,
             child: Text(
-              'Welcome to Bio-Amp',
+              'Welcome to Health Sense',
               textAlign: TextAlign.center,
               style: GoogleFonts.inter(
                 fontSize: 26,
