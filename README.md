@@ -1,6 +1,6 @@
-# BioAMP: Portable WiFi Potentiostat & Data Analysis Suite
+# HealthSense : Portable WiFi Potentiostat & Data Analysis Suite
 
-BioAMP is an open hardware and software platform for portable electrochemical biosensing. It features a **WiFi-enabled Arduino-based potentiostat** and a **Flutter mobile app** for wireless control, data acquisition, and analysis. The platform enables Cyclic Voltammetry (CV), Differential Pulse Voltammetry (DPV), and Amperometry, supporting both general electrochemical research and analyte-specific diagnostics.
+HealthSense is an open hardware and software platform for portable electrochemical biosensing. It features a **WiFi-enabled Arduino-based potentiostat** and a **Flutter mobile app** for wireless control, data acquisition, and analysis. The platform enables Cyclic Voltammetry (CV), Differential Pulse Voltammetry (DPV), and Amperometry, supporting both general electrochemical research and analyte-specific diagnostics.
 
 ---
 
@@ -33,7 +33,7 @@ BioAMP is an open hardware and software platform for portable electrochemical bi
 ## Features
 
 - **WiFi Device Discovery:**  
-  Automatically scans and lists available BioAMP devices on the local network.
+  Automatically scans and lists available HealthSense devices on the local network.
 
 - **No Authentication:**  
   The app is open-access on the local network, with no login or user accounts.
@@ -70,7 +70,7 @@ BioAMP is an open hardware and software platform for portable electrochemical bi
 
 ## System Overview
 
-BioAMP consists of two main components:
+HealthSense consists of two main components:
 
 1. **Arduino-based Potentiostat:**  
    - Connects to WiFi and exposes a REST API
@@ -78,15 +78,15 @@ BioAMP consists of two main components:
    - Displays real-time graphs and status on touchscreen
 
 2. **Flutter Mobile App:**  
-   - Discovers BioAMP devices on the network
+   - Discovers HealthSense devices on the network
    - Configures and starts electrochemical tests
    - Streams and displays data, allows CSV download
    - Analyzes CSV files offline
 
 ### Typical User Flow
 
-1. Power on Arduino (BioAMP device)
-2. Open BioAMP app on phone/tablet (same WiFi)
+1. Power on Arduino (HealthSense device)
+2. Open HealthSense app on phone/tablet (same WiFi)
 3. Scan for and connect to device
 4. Configure and run test (CV, DPV, amperometry, or analyte)
 5. Stream and optionally save data
@@ -99,12 +99,12 @@ BioAMP consists of two main components:
 ### Device Discovery
 
 - The app pings all IPs on the local network for `/whoami`.
-- Devices identifying as "BioAMP" are listed for selection.
+- Devices identifying as "HealthSense" are listed for selection.
 
 ```mermaid
 flowchart LR
     A[App Start] --> B[WiFi Scan]
-    B --> C{Device responds<br>with 'BioAMP'?}
+    B --> C{Device responds<br>with 'HealthSense'?}
     C -- Yes --> D[List in UI]
     C -- No --> E[Ignore]
 ```
@@ -193,7 +193,7 @@ _(Insert photo of Arduino device with touchscreen running a test)_
 ```
 bio-amp/
 ├── arduino/
-│   └── bioAmp.ino          # Arduino firmware
+│   └── HealthSense.ino          # Arduino firmware
 ├── lib/                    # Flutter app source
 │   ├── main.dart           # Entry point
 │   ├── wifi_scan_page.dart # Device discovery
@@ -216,7 +216,7 @@ bio-amp/
 ### Arduino Firmware
 
 1. **Hardware:**  
-   - Assemble the BioAMP circuit with Arduino (see schematic in `docs/`).
+   - Assemble the HealthSense circuit with Arduino (see schematic in `docs/`).
    - Attach touchscreen (if available).
 
 2. **Libraries:**  
@@ -226,7 +226,7 @@ bio-amp/
      - ArduinoJson
 
 3. **Upload:**  
-   - Open `arduino/bioAmp.ino` in Arduino IDE.
+   - Open `arduino/HealthSense.ino` in Arduino IDE.
    - Configure WiFi credentials in the sketch.
    - Upload to your board.
 
@@ -337,7 +337,7 @@ MIT License
 
 ## Acknowledgements
 
-BioAMP is inspired by open hardware projects in the biosensing and DIY potentiostat community. Special thanks to contributors, testers, and the open-source Flutter and Arduino communities.
+HealthSense is inspired by open hardware projects in the biosensing and DIY potentiostat community. Special thanks to contributors, testers, and the open-source Flutter and Arduino communities.
 
 ---
 
