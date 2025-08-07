@@ -1,11 +1,11 @@
 {
-    "name": "bio_amp",
-    "short_name": "bio_amp",
+    "name": "health_sense",
+    "short_name": "health_sense",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "Bio-Amp Flutter Project",
+    "description": "Health Sense Flutter Project",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

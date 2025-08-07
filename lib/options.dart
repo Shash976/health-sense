@@ -1,8 +1,8 @@
-import 'package:bio_amp/amp_config_page.dart';
-import 'package:bio_amp/cv_config_page.dart';
-import 'package:bio_amp/dpv_config_page.dart';
-import 'package:bio_amp/analyteTasks.dart';
-import 'package:bio_amp/wifi_scan_page.dart';
+import 'package:health_sense/amp_config_page.dart';
+import 'package:health_sense/cv_config_page.dart';
+import 'package:health_sense/dpv_config_page.dart';
+import 'package:health_sense/analyteTasks.dart';
+import 'package:health_sense/wifi_scan_page.dart';
 import 'package:flutter/material.dart';
 
 import 'analysis_page.dart';

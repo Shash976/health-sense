@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
-import 'package:bio_amp/volt_dashboard.dart';
+import 'package:health_sense/volt_dashboard.dart';
 
 class VoltConfigField {
   final String label;

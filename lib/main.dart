@@ -1,4 +1,4 @@
-import 'package:bio_amp/welcome.dart';
+import 'package:health_sense/welcome.dart';
 import 'package:flutter/material.dart';
 
 void main() {
@@ -12,7 +12,7 @@ class App extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Health Sense',
-      theme: ThemeData(
+      theme:  ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
         useMaterial3: true,
       ),

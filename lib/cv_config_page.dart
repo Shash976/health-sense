@@ -1,4 +1,4 @@
-import 'package:bio_amp/volt_config_page.dart';
+import 'package:health_sense/volt_config_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 

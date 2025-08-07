@@ -1,4 +1,4 @@
-package com.example.bio_amp
+package com.example.health_sense
 
 import io.flutter.embedding.android.FlutterActivity
 

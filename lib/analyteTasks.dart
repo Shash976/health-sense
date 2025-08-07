@@ -1,4 +1,4 @@
-import 'package:bio_amp/analyte_dashboard.dart';
+import 'package:health_sense/analyte_dashboard.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';

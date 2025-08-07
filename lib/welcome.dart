@@ -1,4 +1,4 @@
-import 'package:bio_amp/wifi_scan_page.dart';
+import 'package:health_sense/wifi_scan_page.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
