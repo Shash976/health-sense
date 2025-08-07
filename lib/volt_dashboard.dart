@@ -32,43 +32,45 @@ class _VoltDashboardState extends State<VoltDashboard> {
   }
 
   Future<void> fetchPoint() async {
-    try {
-      final url = Uri.parse(
-        "http://${widget.deviceIp}/${widget.mode.toLowerCase()}data",
-      );
-      final response = await http.get(url);
-      debugPrint("${widget.mode.toUpperCase()} Response: ${response.body}");
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
+  try {
+    final url = Uri.parse(
+      "http://${widget.deviceIp}/${widget.mode.toLowerCase()}data",
+    );
+    final response = await http.get(url);
+    debugPrint("${widget.mode.toUpperCase()} Response: ${response.body}");
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
 
-        if (data.containsKey("x") && data.containsKey("y")) {
+      if (data.containsKey("x") && data.containsKey("y")) {
+        if (mounted) {
           setState(() {
             xValues.add((data["x"] as num).toDouble());
             yValues.add((data["y"] as num).toDouble());
           });
           // Auto-scroll to the bottom
           Future.delayed(Duration(milliseconds: 50), () {
-            if (_scrollController.hasClients) {
+            if (_scrollController.hasClients && mounted) {
               _scrollController.animateTo(
                 _scrollController.position.maxScrollExtent,
-                duration: Duration(milliseconds: 300),
+                duration: Duration(milliseconds: 500),
                 curve: Curves.easeOut,
               );
             }
           });
-        } else if (data["status"] == "${widget.mode.toLowerCase()}_done") {
-          pollTimer?.cancel();
-          // handle completion (snackbar, nav, plot, etc.)
         }
+      } else if (data["status"] == "${widget.mode.toLowerCase()}_done") {
+        pollTimer?.cancel();
+        // handle completion (snackbar, nav, plot, etc.)
       }
-    } on SocketException {
-      debugPrint(
-        "Network error while fetching ${widget.mode.toUpperCase()} data.",
-      );
-    } catch (e) {
-      debugPrint("Error polling ${widget.mode.toUpperCase()}: $e");
     }
+  } on SocketException {
+    debugPrint(
+      "Network error while fetching ${widget.mode.toUpperCase()} data.",
+    );
+  } catch (e) {
+    debugPrint("Error polling ${widget.mode.toUpperCase()}: $e");
   }
+}
 
   void _downloadCSV() async {
     final isCV = widget.mode.toLowerCase() == "cv";
@@ -177,7 +179,7 @@ class _VoltDashboardState extends State<VoltDashboard> {
                 itemCount: xValues.length,
                 itemBuilder: (context, index) {
                   return Text(
-                    "(${xValues[index].toString()}, ${yValues[index].toString()})",
+                    "(${xValues[index].toStringAsFixed(3)}, ${yValues[index].toStringAsFixed(3)})",
                   );
                 },
               ),
