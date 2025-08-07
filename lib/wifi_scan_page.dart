@@ -3,6 +3,8 @@ import 'dart:io';
 import 'package:bio_amp/options.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:connectivity_plus/connectivity_plus.dart';
+import 'network_utils.dart';
 
 class WifiScanPage extends StatefulWidget {
   const WifiScanPage({super.key});
@@ -16,6 +18,20 @@ class _WifiScanPageState extends State<WifiScanPage> {
   bool isScanning = false;
   List<String> scanLogs = [];
 
+  Future<List<String>> _getWifiOrHotspotIps() async {
+    final connectivityResult = await Connectivity().checkConnectivity();
+    if (connectivityResult == ConnectivityResult.wifi) {
+      final wifiIp = await NetworkUtils.getWifiIp();
+      if (wifiIp != null) {
+        // Check if it's a hotspot IP (commonly 192.168.43.x)
+        final subnet = NetworkUtils.getHotspotSubnet(wifiIp);
+        return [wifiIp];
+      }
+    }
+    // Fallback: try to get all local IPs (legacy)
+    return await _getAllLocalIps();
+  }
+
   Future<void> _scanNetwork() async {
     setState(() {
       isScanning = true;
@@ -23,7 +39,7 @@ class _WifiScanPageState extends State<WifiScanPage> {
       scanLogs = ["🔍 Starting scan..."];
     });
 
-    final localIps = await _getAllLocalIps();
+    final localIps = await _getWifiOrHotspotIps();
     if (localIps.isEmpty) {
       setState(() {
         isScanning = false;
@@ -33,7 +49,7 @@ class _WifiScanPageState extends State<WifiScanPage> {
     }
 
     for (final localIp in localIps) {
-      final subnet = localIp.substring(0, localIp.lastIndexOf('.') + 1);
+      final subnet = NetworkUtils.getHotspotSubnet(localIp);
       scanLogs.add("📡 Scanning subnet: $subnet");
       for (int i = 1; i <= 254; i++) {
         final ip = '$subnet$i';
