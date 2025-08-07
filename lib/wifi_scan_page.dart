@@ -48,48 +48,48 @@ class _WifiScanPageState extends State<WifiScanPage> {
       return;
     }
 
+    bool foundDevice = false;
+
     for (final localIp in localIps) {
       final subnet = NetworkUtils.getHotspotSubnet(localIp);
-      scanLogs.add("📡 Scanning subnet: $subnet");
+      debugPrint("📡 Scanning subnet: $subnet");
+      List<Future<void>> futures = [];
       for (int i = 1; i <= 254; i++) {
         final ip = '$subnet$i';
-        _checkDevice(ip);
-        await Future.delayed(const Duration(milliseconds: 20)); // Avoid flooding
+        futures.add(_checkDevice(ip, (log, deviceFound) {
+          debugPrint(log);
+          if (deviceFound) foundDevice = true;
+        }));
       }
+      await Future.wait(futures);
+    }
+    if (mounted) {
+      setState(() {
+        isScanning = false;
+        if (!foundDevice) scanLogs.add("🔎 Scan complete. No BioAMP devices found.");
+        else scanLogs.add("✅ Scan complete.");
+      });
     }
   }
 
-  Future<void> _checkDevice(String ip) async {
+  Future<void> _checkDevice(String ip, void Function(String, bool) logCallback) async {
     final url = Uri.parse('http://$ip/whoami');
     try {
-      scanLogs.add("➡️ Pinging $ip...");
-      debugPrint("➡️ Pinging $ip...");
+      logCallback("➡️ Pinging $ip...", false);
       final response = await http.get(url).timeout(const Duration(milliseconds: 700));
-      debugPrint("Response from $ip: ${response.statusCode}");
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         if (data['name'] == 'BioAMP') {
-          setState(() {
-            devices.add({'ip': ip, 'name': data['name']});
-            scanLogs.add("✅ $ip responded: ${data['name']}");
-            debugPrint("✅ $ip responded: ${data['name']}");
-
-          });
+          devices.add({'ip': ip, 'name': data['name']});
+          logCallback("✅ $ip responded: ${data['name']}", true);
         } else {
-          scanLogs.add("🟡 $ip responded, but not BioAMP.");
-          debugPrint("🟡 $ip responded, but not BioAMP.");
+          logCallback("🟡 $ip responded, but not BioAMP.", false);
         }
       } else {
-        scanLogs.add("❌ $ip responded with status ${response.statusCode}.");
-        debugPrint("❌ $ip responded with status ${response.statusCode}.");
+        logCallback("❌ $ip responded with status ${response.statusCode}.", false);
       }
     } catch (e) {
-      scanLogs.add("❌ $ip failed (${e.runtimeType}).");
-      debugPrint("❌ $ip failed (${e.runtimeType}).");
-    }
-
-    if (mounted && devices.length + 1 >= 254) {
-      setState(() => isScanning = false);
+      logCallback("❌ $ip failed (${e.runtimeType}).", false);
     }
   }
 
