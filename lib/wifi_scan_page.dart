@@ -47,6 +47,7 @@ class _WifiScanPageState extends State<WifiScanPage> {
       });
       return;
     }
+    debugPrint("📡 Local IPs: $localIps");
 
     bool foundDevice = false;
 
@@ -76,8 +77,10 @@ class _WifiScanPageState extends State<WifiScanPage> {
     final url = Uri.parse('http://$ip/whoami');
     try {
       logCallback("➡️ Pinging $ip...", false);
-      final response = await http.get(url).timeout(const Duration(milliseconds: 700));
+      final response = await http.get(url).timeout(const Duration(milliseconds: 1000));
+      logCallback("📡 Pinging $ip: ${response.statusCode}", true);
       if (response.statusCode == 200) {
+        logCallback("📡 $ip responded: ${response.body}", true);
         final data = json.decode(response.body);
         if (data['name'] == 'BioAMP') {
           devices.add({'ip': ip, 'name': data['name']});
