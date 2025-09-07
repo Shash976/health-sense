@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'network_utils.dart';
+import 'package:flutter/foundation.dart';
 
 class WifiScanPage extends StatefulWidget {
   const WifiScanPage({super.key});
@@ -17,6 +18,25 @@ class _WifiScanPageState extends State<WifiScanPage> {
   List<Map<String, String>> devices = [];
   bool isScanning = false;
   List<String> scanLogs = [];
+
+  Future<List<String>> _getAllLocalIps() async {
+    List<String> ips = [];
+    try {
+      // Only attempt on platforms where dart:io is supported and not web
+      if (!kIsWeb && (Platform.isLinux || Platform.isMacOS || Platform.isWindows)) {
+        for (var interface in await NetworkInterface.list()) {
+          for (var addr in interface.addresses) {
+            if (addr.type == InternetAddressType.IPv4 && !addr.isLoopback) {
+              ips.add(addr.address);
+            }
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Failed to list network interfaces: $e');
+    }
+    return ips;
+  }
 
   Future<List<String>> _getWifiOrHotspotIps() async {
     final connectivityResult = await Connectivity().checkConnectivity();
