@@ -14,6 +14,19 @@ class WifiScanPage extends StatefulWidget {
   State<WifiScanPage> createState() => _WifiScanPageState();
 }
 
+class _PingResult {
+  final bool responded;
+  final bool isBioAmp;
+  final String? name;
+  final int? statusCode;
+  const _PingResult({
+    required this.responded,
+    required this.isBioAmp,
+    this.name,
+    this.statusCode,
+  });
+}
+
 class _WifiScanPageState extends State<WifiScanPage> {
   List<Map<String, String>> devices = [];
   bool isScanning = false;
