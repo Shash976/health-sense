@@ -27,7 +27,7 @@ class CVConfigPage extends StatelessWidget {
         ],
       ),
       VoltConfigField(
-        label: "Scan Rate (mV/s)",
+        label: "Scan Rate (V/s)",
         controller: TextEditingController(text: "0.1"),
       ),
       VoltConfigField(
