@@ -20,6 +20,7 @@ class _VoltDashboardState extends State<VoltDashboard> {
   List<double> yValues = [];
   Timer? pollTimer;
   late ScrollController _scrollController;
+  bool _autoScroll = true; // default on
 
   @override
   void initState() {
@@ -27,50 +28,52 @@ class _VoltDashboardState extends State<VoltDashboard> {
     _scrollController = ScrollController();
     pollTimer = Timer.periodic(
       const Duration(milliseconds: 100),
-      (_) => fetchPoint(),
+          (_) => fetchPoint(),
     );
   }
 
   Future<void> fetchPoint() async {
-  try {
-    final url = Uri.parse(
-      "http://${widget.deviceIp}/${widget.mode.toLowerCase()}data",
-    );
-    final response = await http.get(url);
-    debugPrint("${widget.mode.toUpperCase()} Response: ${response.body}");
-    if (response.statusCode == 200) {
-      final data = json.decode(response.body);
+    try {
+      final url = Uri.parse(
+        "http://${widget.deviceIp}/${widget.mode.toLowerCase()}data",
+      );
+      final response = await http.get(url);
+      debugPrint("${widget.mode.toUpperCase()} Response: ${response.body}");
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
 
-      if (data.containsKey("x") && data.containsKey("y")) {
-        if (mounted) {
-          setState(() {
-            xValues.add((data["x"] as num).toDouble());
-            yValues.add((data["y"] as num).toDouble());
-          });
-          // Auto-scroll to the bottom
-          Future.delayed(Duration(milliseconds: 50), () {
-            if (_scrollController.hasClients && mounted) {
-              _scrollController.animateTo(
-                _scrollController.position.maxScrollExtent,
-                duration: Duration(milliseconds: 500),
-                curve: Curves.easeOut,
-              );
+        if (data.containsKey("x") && data.containsKey("y")) {
+          if (mounted) {
+            setState(() {
+              xValues.add((data["x"] as num).toDouble());
+              yValues.add((data["y"] as num).toDouble());
+            });
+            // Auto-scroll to the bottom if enabled
+            if (_autoScroll) {
+              Future.delayed(const Duration(milliseconds: 50), () {
+                if (_scrollController.hasClients && mounted) {
+                  _scrollController.animateTo(
+                    _scrollController.position.maxScrollExtent,
+                    duration: const Duration(milliseconds: 500),
+                    curve: Curves.easeOut,
+                  );
+                }
+              });
             }
-          });
+          }
+        } else if (data["status"] == "${widget.mode.toLowerCase()}_done") {
+          pollTimer?.cancel();
+          // handle completion (snackbar, nav, plot, etc.)
         }
-      } else if (data["status"] == "${widget.mode.toLowerCase()}_done") {
-        pollTimer?.cancel();
-        // handle completion (snackbar, nav, plot, etc.)
       }
+    } on SocketException {
+      debugPrint(
+        "Network error while fetching ${widget.mode.toUpperCase()} data.",
+      );
+    } catch (e) {
+      debugPrint("Error polling ${widget.mode.toUpperCase()}: $e");
     }
-  } on SocketException {
-    debugPrint(
-      "Network error while fetching ${widget.mode.toUpperCase()} data.",
-    );
-  } catch (e) {
-    debugPrint("Error polling ${widget.mode.toUpperCase()}: $e");
   }
-}
 
   void _downloadCSV() async {
     final isCV = widget.mode.toLowerCase() == "cv";
@@ -159,6 +162,7 @@ class _VoltDashboardState extends State<VoltDashboard> {
   @override
   void dispose() {
     pollTimer?.cancel();
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -172,6 +176,21 @@ class _VoltDashboardState extends State<VoltDashboard> {
         child: Column(
           children: [
             Text("Received ${xValues.length} points"),
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text("Autoscroll"),
+                Switch(
+                  value: _autoScroll,
+                  onChanged: (value) {
+                    setState(() {
+                      _autoScroll = value;
+                    });
+                  },
+                ),
+              ],
+            ),
             const SizedBox(height: 16),
             Expanded(
               child: ListView.builder(
@@ -187,8 +206,8 @@ class _VoltDashboardState extends State<VoltDashboard> {
             const SizedBox(height: 16),
             ElevatedButton.icon(
               onPressed: xValues.isEmpty ? null : _downloadCSV,
-              icon: Icon(Icons.download),
-              label: Text("Download CSV"),
+              icon: const Icon(Icons.download),
+              label: const Text("Download CSV"),
             ),
           ],
         ),
