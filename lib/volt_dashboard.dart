@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter_downloader/flutter_downloader.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 
@@ -147,12 +148,33 @@ class _VoltDashboardState extends State<VoltDashboard> {
         csvLines.add("${xValues[i]},${yValues[i]}");
       }
     }
-    final csv = csvLines.join("\n");
+        final csv = csvLines.join("\n");
 
-    final directory = await getApplicationDocumentsDirectory();
+    final directory = Platform.isAndroid
+        ? Directory('/storage/emulated/0/Download')
+        : await getApplicationDocumentsDirectory();
+
+    if (!(await directory.exists())) {
+      await directory.create(recursive: true);
+    }
+
     final filePath = "${directory.path}/$fileName";
     final file = File(filePath);
     await file.writeAsString(csv);
+
+    // Ensure you have `import 'package:flutter_downloader/flutter_downloader.dart';`
+    // Enqueue a task so the Download manager/notification is used
+    try {
+      await FlutterDownloader.enqueue(
+        url: 'file://$filePath',
+        savedDir: directory.path,
+        fileName: fileName,
+        showNotification: true,
+        openFileFromNotification: true,
+      );
+    } catch (e) {
+      debugPrint('FlutterDownloader enqueue failed: $e');
+    }
 
     ScaffoldMessenger.of(
       context,

@@ -32,100 +32,29 @@ class _WifiScanPageState extends State<WifiScanPage> {
   bool isScanning = false;
   List<String> scanLogs = [];
 
-  Future<List<String>> _getAllLocalIps() async {
-    List<String> ips = [];
-    try {
-      // Only attempt on platforms where dart:io is supported and not web
-      if (!kIsWeb && (Platform.isLinux || Platform.isMacOS || Platform.isWindows)) {
-        for (var interface in await NetworkInterface.list()) {
-          for (var addr in interface.addresses) {
-            if (addr.type == InternetAddressType.IPv4 && !addr.isLoopback) {
-              ips.add(addr.address);
-            }
-          }
-        }
-      }
-    } catch (e) {
-      debugPrint('Failed to list network interfaces: $e');
-    }
-    return ips;
-  }
-
-  Future<List<String>> _getWifiOrHotspotIps() async {
-    final connectivityResult = await Connectivity().checkConnectivity();
-    if (connectivityResult == ConnectivityResult.wifi) {
-      final wifiIp = await NetworkUtils.getWifiIp();
-      if (wifiIp != null) {
-        // Check if it's a hotspot IP (commonly 192.168.43.x)
-        final subnet = NetworkUtils.getHotspotSubnet(wifiIp);
-        return [wifiIp];
-      }
-    }
-    // Fallback: try to get all local IPs (legacy)
-    return await _getAllLocalIps();
-  }
-
   Future<void> _scanNetwork() async {
     setState(() {
       isScanning = true;
       devices = [];
-      scanLogs = ["🔍 Starting scan..."];
+      scanLogs = ["🔍 Looking up bioamp.local..."];
     });
 
-    final localIps = await _getWifiOrHotspotIps();
-    if (localIps.isEmpty) {
-      setState(() {
-        isScanning = false;
-        scanLogs.add("❌ Could not find any local IPs.");
-      });
-      return;
-    }
-    debugPrint("📡 Local IPs: $localIps");
+    final host = 'bioamp.local';
+    debugPrint("📡 Pinging $host");
+    final result = await _pingIp(host);
 
-    bool foundDevice = false;
-
-    for (final localIp in localIps) {
-      final subnet = NetworkUtils.getHotspotSubnet(localIp);
-      debugPrint("📡 Scanning subnet: $subnet");
-      List<Future<void>> futures = [];
-      for (int i = 1; i <= 254; i++) {
-        final ip = '$subnet$i';
-        futures.add(_checkDevice(ip, (log, deviceFound) {
-          debugPrint(log);
-          if (deviceFound) foundDevice = true;
-        }));
-      }
-      await Future.wait(futures);
-    }
     if (mounted) {
       setState(() {
-        isScanning = false;
-        if (!foundDevice) scanLogs.add("🔎 Scan complete. No BioAMP devices found.");
-        else scanLogs.add("✅ Scan complete.");
-      });
-    }
-  }
-
-  Future<void> _checkDevice(String ip, void Function(String, bool) logCallback) async {
-    final url = Uri.parse('http://$ip/whoami');
-    try {
-      logCallback("➡️ Pinging $ip...", false);
-      final response = await http.get(url).timeout(const Duration(milliseconds: 1000));
-      logCallback("📡 Pinging $ip: ${response.statusCode}", true);
-      if (response.statusCode == 200) {
-        logCallback("📡 $ip responded: ${response.body}", true);
-        final data = json.decode(response.body);
-        if (data['name'] == 'BioAMP') {
-          devices.add({'ip': ip, 'name': data['name']});
-          logCallback("✅ $ip responded: ${data['name']}", true);
+        if (result.responded && result.isBioAmp) {
+          devices.add({'ip': host, 'name': result.name ?? 'BioAMP'});
+          scanLogs.add("✅ Found BioAMP at $host");
+        } else if (result.responded) {
+          scanLogs.add("🟡 $host responded as ${result.name ?? 'Unknown'}, not identified as BioAMP.");
         } else {
-          logCallback("🟡 $ip responded, but not BioAMP.", false);
+          scanLogs.add("❌ No response from $host.");
         }
-      } else {
-        logCallback("❌ $ip responded with status ${response.statusCode}.", false);
-      }
-    } catch (e) {
-      logCallback("❌ $ip failed (${e.runtimeType}).", false);
+        isScanning = false;
+      });
     }
   }
 
@@ -156,7 +85,7 @@ class _WifiScanPageState extends State<WifiScanPage> {
           title: const Text('Enter BioAMP IP'),
           content: TextField(
             keyboardType: TextInputType.number,
-            decoration: const InputDecoration(hintText: 'e.g. 192.168.1.42'),
+            decoration: const InputDecoration(hintText: 'e.g. 192.168.137.158'),
             onChanged: (v) => input = v.trim(),
           ),
           actions: [
