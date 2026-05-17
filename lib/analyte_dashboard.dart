@@ -22,22 +22,27 @@ class AnalyteDashboard extends StatefulWidget {
 
 class _AnalyteDashboardState extends State<AnalyteDashboard> {
   double? value;
+  bool _cancelled = false;
 
   Future<void> _fetchValue() async {
+    if (_cancelled) return;
     try {
       final url = Uri.parse('http://${widget.deviceIp}/result');
       final response = await http.get(url);
+      if (_cancelled) return;
       debugPrint("Response: ${response.body}");
       if (response.statusCode == 200) {
-        debugPrint("Response: ${response.body}");
         final data = json.decode(response.body);
         if (data.containsKey('value')) {
-          setState(() {
-            value = (data['value'] as num).toDouble();
-          });
+          if (mounted) {
+            setState(() {
+              value = (data['value'] as num).toDouble();
+            });
+          }
         } else if (data['status'] == 'processing') {
-          // Retry after delay
-          Future.delayed(const Duration(seconds: 2), _fetchValue);
+          Future.delayed(const Duration(seconds: 2), () {
+            if (!_cancelled) _fetchValue();
+          });
         } else {
           debugPrint("Unexpected response: $data");
         }
@@ -51,6 +56,12 @@ class _AnalyteDashboardState extends State<AnalyteDashboard> {
   void initState() {
     super.initState();
     _fetchValue();
+  }
+
+  @override
+  void dispose() {
+    _cancelled = true;
+    super.dispose();
   }
 
   @override

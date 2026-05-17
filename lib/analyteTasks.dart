@@ -3,12 +3,19 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
-import 'analyte_constants.dart'; // includes Analyte and analytes list
+import 'analyte_constants.dart';
 
-class TaskPage extends StatelessWidget {
+class TaskPage extends StatefulWidget {
   final String deviceIp;
 
   const TaskPage({super.key, required this.deviceIp});
+
+  @override
+  State<TaskPage> createState() => _TaskPageState();
+}
+
+class _TaskPageState extends State<TaskPage> {
+  bool _startingTest = false;
 
   void _showTestDialog(BuildContext context, Analyte analyte) {
     final oxidationCtrl = TextEditingController(text: analyte.oxidationPotential.toString());
@@ -16,8 +23,8 @@ class TaskPage extends StatelessWidget {
     final normalMaxCtrl = TextEditingController(text: analyte.normalMaxMGDL.toString());
     final convFactorCtrl = TextEditingController(text: analyte.conversionFactor.toString());
     final timeCtrl = TextEditingController(text: analyte.time.toString());
-    final calibSlope = TextEditingController(text: analyte.calibSlope.toString());
-    final calibConstant = TextEditingController(text: analyte.calibConstant.toString());
+    final calibSlopeCtrl = TextEditingController(text: analyte.calibSlope.toString());
+    final calibConstantCtrl = TextEditingController(text: analyte.calibConstant.toString());
 
     bool showFields = false;
 
@@ -25,7 +32,7 @@ class TaskPage extends StatelessWidget {
       context: context,
       builder: (ctx) {
         return StatefulBuilder(
-          builder: (ctx, setState) {
+          builder: (ctx, setDialogState) {
             return AlertDialog(
               title: Text('Start ${analyte.name} Test'),
               content: SingleChildScrollView(
@@ -39,27 +46,29 @@ class TaskPage extends StatelessWidget {
                         children: [
                           Expanded(
                             child: ElevatedButton(
-                              onPressed: () {
-                                final config = {
-                                  'task': analyte.code,
-                                  'oxidationPotential': analyte.oxidationPotential,
-                                  'normalMinMGDL': analyte.normalMinMGDL,
-                                  'normalMaxMGDL': analyte.normalMaxMGDL,
-                                  'conversionFactor': analyte.conversionFactor,
-                                  'time': analyte.time,
-                                  'calibSlope': analyte.calibSlope,
-                                  'calibConstant': analyte.calibConstant,
-                                };
-                                _startTest(context, analyte, config);
-                                Navigator.pop(ctx);
-                              },
+                              onPressed: _startingTest
+                                  ? null
+                                  : () {
+                                      final config = {
+                                        'task': analyte.code,
+                                        'oxidationPotential': analyte.oxidationPotential,
+                                        'normalMinMGDL': analyte.normalMinMGDL,
+                                        'normalMaxMGDL': analyte.normalMaxMGDL,
+                                        'conversionFactor': analyte.conversionFactor,
+                                        'time': analyte.time,
+                                        'calibSlope': analyte.calibSlope,
+                                        'calibConstant': analyte.calibConstant,
+                                      };
+                                      Navigator.pop(ctx);
+                                      _startTest(context, analyte, config);
+                                    },
                               child: const Text("Use Defaults"),
                             ),
                           ),
                           const SizedBox(width: 8),
                           Expanded(
                             child: ElevatedButton(
-                              onPressed: () => setState(() => showFields = true),
+                              onPressed: () => setDialogState(() => showFields = true),
                               child: const Text("Customize"),
                             ),
                           ),
@@ -71,33 +80,35 @@ class TaskPage extends StatelessWidget {
                       _buildField("Normal Max (mg/dL)", normalMaxCtrl),
                       _buildField("Conversion Factor", convFactorCtrl),
                       _buildField("Test Time (ms)", timeCtrl),
-                      _buildField("Calibration Slope", calibSlope),
-                      _buildField("Calibration Constant", calibConstant),
+                      _buildField("Calibration Slope", calibSlopeCtrl),
+                      _buildField("Calibration Constant", calibConstantCtrl),
                     ],
                   ],
                 ),
               ),
               actions: showFields
                   ? [
-                TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancel")),
-                ElevatedButton(
-                  onPressed: () {
-                    final config = {
-                      'task': analyte.code,
-                      'oxidationPotential': double.tryParse(oxidationCtrl.text) ?? analyte.oxidationPotential,
-                      'normalMinMGDL': double.tryParse(normalMinCtrl.text) ?? analyte.normalMinMGDL,
-                      'normalMaxMGDL': double.tryParse(normalMaxCtrl.text) ?? analyte.normalMaxMGDL,
-                      'conversionFactor': double.tryParse(convFactorCtrl.text) ?? analyte.conversionFactor,
-                      'time': int.tryParse(timeCtrl.text) ?? analyte.time,
-                      'calibSlope': double.tryParse(calibSlope.text) ?? analyte.calibSlope,
-                      'calibConstant': double.tryParse(calibConstant.text) ?? analyte.calibConstant,
-                    };
-                    _startTest(context, analyte, config);
-                    Navigator.pop(ctx);
-                  },
-                  child: const Text("Start Test"),
-                ),
-              ]
+                      TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancel")),
+                      ElevatedButton(
+                        onPressed: _startingTest
+                            ? null
+                            : () {
+                                final config = {
+                                  'task': analyte.code,
+                                  'oxidationPotential': double.tryParse(oxidationCtrl.text) ?? analyte.oxidationPotential,
+                                  'normalMinMGDL': double.tryParse(normalMinCtrl.text) ?? analyte.normalMinMGDL,
+                                  'normalMaxMGDL': double.tryParse(normalMaxCtrl.text) ?? analyte.normalMaxMGDL,
+                                  'conversionFactor': double.tryParse(convFactorCtrl.text) ?? analyte.conversionFactor,
+                                  'time': int.tryParse(timeCtrl.text) ?? analyte.time,
+                                  'calibSlope': double.tryParse(calibSlopeCtrl.text) ?? analyte.calibSlope,
+                                  'calibConstant': double.tryParse(calibConstantCtrl.text) ?? analyte.calibConstant,
+                                };
+                                Navigator.pop(ctx);
+                                _startTest(context, analyte, config);
+                              },
+                        child: const Text("Start Test"),
+                      ),
+                    ]
                   : null,
             );
           },
@@ -106,19 +117,16 @@ class TaskPage extends StatelessWidget {
     );
   }
 
-  // Add this method to TaskPage
   void _showAddAnalyteDialog(BuildContext context) {
     final nameCtrl = TextEditingController();
     final codeCtrl = TextEditingController();
     final oxidationCtrl = TextEditingController();
-    final minCtrl = TextEditingController();
-    final maxCtrl = TextEditingController();
     final normalMinCtrl = TextEditingController();
     final normalMaxCtrl = TextEditingController();
     final convFactorCtrl = TextEditingController();
     final timeCtrl = TextEditingController();
-    final calibSlope = TextEditingController();
-    final calibConstant = TextEditingController();
+    final calibSlopeCtrl = TextEditingController();
+    final calibConstantCtrl = TextEditingController();
 
     showDialog(
       context: context,
@@ -136,44 +144,60 @@ class TaskPage extends StatelessWidget {
                 _buildField("Normal Max (mg/dL)", normalMaxCtrl),
                 _buildField("Conversion Factor", convFactorCtrl),
                 _buildField("Test Time (ms)", timeCtrl),
-                _buildField("Calibration Slope", calibSlope),
-                _buildField("Calibration Constant", calibConstant),
-                _buildField("Min Sensor Range", minCtrl),
-                _buildField("Max Sensor Range", maxCtrl),
+                _buildField("Calibration Slope", calibSlopeCtrl),
+                _buildField("Calibration Constant", calibConstantCtrl),
               ],
             ),
           ),
           actions: [
             TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancel")),
             ElevatedButton(
-              onPressed: () {
-                final config = {
-                  'task': codeCtrl.text,
-                  'oxidationPotential': double.tryParse(oxidationCtrl.text) ?? 0.0,
-                  'normalMinMGDL': double.tryParse(normalMinCtrl.text) ?? 0.0,
-                  'normalMaxMGDL': double.tryParse(normalMaxCtrl.text) ?? 0.0,
-                  'conversionFactor': double.tryParse(convFactorCtrl.text) ?? 1.0,
-                  'time': int.tryParse(timeCtrl.text) ?? 1000,
-                  'calibSlope': double.tryParse(calibSlope.text) ?? 9.2609e-9,
-                  'calibConstant': double.tryParse(calibConstant.text) ?? 7.276e-7,
-                  'min': double.tryParse(minCtrl.text) ?? 0.0,
-                  'max': double.tryParse(maxCtrl.text) ?? 100.0,
-                };
-                final analyte = Analyte(
-                  nameCtrl.text,
-                  codeCtrl.text,
-                  double.tryParse(oxidationCtrl.text) ?? 0.0,
-                  double.tryParse(normalMinCtrl.text) ?? 0.0,
-                  double.tryParse(normalMaxCtrl.text) ?? 0.0,
-                  double.tryParse(convFactorCtrl.text) ?? 1.0,
-                  int.tryParse(timeCtrl.text) ?? 1000,
-                  double.tryParse(calibSlope.text) ?? 1.0,
-                  double.tryParse(calibConstant.text) ?? 0.0,
-                );
-                _startTest(context, analyte, config);
-                Navigator.pop(ctx);
-              },
-              child: const Text("Start Test"),
+              onPressed: _startingTest
+                  ? null
+                  : () {
+                      final name = nameCtrl.text.trim();
+                      final code = codeCtrl.text.trim();
+                      if (name.isEmpty || code.isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Name and Code are required.')),
+                        );
+                        return;
+                      }
+                      final minVal = double.tryParse(normalMinCtrl.text) ?? 0.0;
+                      final maxVal = double.tryParse(normalMaxCtrl.text) ?? 100.0;
+                      if (minVal >= maxVal) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Normal Min must be less than Normal Max.')),
+                        );
+                        return;
+                      }
+                      final analyte = Analyte(
+                        name,
+                        code,
+                        double.tryParse(oxidationCtrl.text) ?? 0.0,
+                        minVal,
+                        maxVal,
+                        double.tryParse(convFactorCtrl.text) ?? 1.0,
+                        int.tryParse(timeCtrl.text) ?? 1000,
+                        double.tryParse(calibSlopeCtrl.text) ?? 1.0,
+                        double.tryParse(calibConstantCtrl.text) ?? 0.0,
+                      );
+                      // Add to list and rebuild the page, then start the test.
+                      setState(() => addAnalyte(analyte));
+                      final config = {
+                        'task': analyte.code,
+                        'oxidationPotential': analyte.oxidationPotential,
+                        'normalMinMGDL': analyte.normalMinMGDL,
+                        'normalMaxMGDL': analyte.normalMaxMGDL,
+                        'conversionFactor': analyte.conversionFactor,
+                        'time': analyte.time,
+                        'calibSlope': analyte.calibSlope,
+                        'calibConstant': analyte.calibConstant,
+                      };
+                      Navigator.pop(ctx);
+                      _startTest(context, analyte, config);
+                    },
+              child: const Text("Add & Start Test"),
             ),
           ],
         );
@@ -195,14 +219,16 @@ class TaskPage extends StatelessWidget {
     );
   }
 
-  void _startTest(BuildContext context, Analyte analyte, Map<String, dynamic> config) async {
+  Future<void> _startTest(BuildContext context, Analyte analyte, Map<String, dynamic> config) async {
+    if (_startingTest) return;
+    setState(() => _startingTest = true);
     try {
       final response = await http.post(
-        Uri.parse('http://$deviceIp/test'),
+        Uri.parse('http://${widget.deviceIp}/test'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode(config),
       );
-
+      if (!mounted) return;
       if (response.statusCode == 200) {
         debugPrint("Sent parameters: $config");
         debugPrint("Test started successfully: ${response.body}");
@@ -210,10 +236,10 @@ class TaskPage extends StatelessWidget {
           context,
           MaterialPageRoute(
             builder: (_) => AnalyteDashboard(
-              deviceIp: deviceIp,
+              deviceIp: widget.deviceIp,
               testName: analyte.name,
-              min: config['normalMinMGDL'] ?? analyte.normalMinMGDL,
-              max: config['normalMaxMGDL'] ?? analyte.normalMaxMGDL,
+              min: (config['normalMinMGDL'] as num).toDouble(),
+              max: (config['normalMaxMGDL'] as num).toDouble(),
             ),
           ),
         );
@@ -221,9 +247,13 @@ class TaskPage extends StatelessWidget {
         throw Exception("Status: ${response.statusCode}");
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Failed to start test: $e")),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Failed to start test: $e")),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _startingTest = false);
     }
   }
 
@@ -239,14 +269,14 @@ class TaskPage extends StatelessWidget {
             title: Text(analyte.name),
             subtitle: Text("Normal: ${analyte.normalRange}"),
             trailing: ElevatedButton(
+              onPressed: _startingTest ? null : () => _showTestDialog(context, analyte),
               child: const Text("Test"),
-              onPressed: () => _showTestDialog(context, analyte),
             ),
           );
         },
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () => _showAddAnalyteDialog(context),
+        onPressed: _startingTest ? null : () => _showAddAnalyteDialog(context),
         tooltip: 'Add Analyte',
         child: const Icon(Icons.add),
       ),

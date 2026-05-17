@@ -1,11 +1,12 @@
 import 'dart:convert';
-import 'dart:io';
 import 'package:health_sense/options.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'package:connectivity_plus/connectivity_plus.dart';
-import 'network_utils.dart';
-import 'package:flutter/foundation.dart';
+
+// In AP mode the Arduino always occupies the gateway address.
+const _kApIp = '192.168.4.1';
+const _kApSsid = 'BioAMP';
+const _kApPassword = 'bioamp123';
 
 class WifiScanPage extends StatefulWidget {
   const WifiScanPage({super.key});
@@ -14,212 +15,198 @@ class WifiScanPage extends StatefulWidget {
   State<WifiScanPage> createState() => _WifiScanPageState();
 }
 
-class _PingResult {
-  final bool responded;
-  final bool isBioAmp;
-  final String? name;
-  final int? statusCode;
-  const _PingResult({
-    required this.responded,
-    required this.isBioAmp,
-    this.name,
-    this.statusCode,
-  });
-}
-
 class _WifiScanPageState extends State<WifiScanPage> {
-  List<Map<String, String>> devices = [];
-  bool isScanning = false;
-  List<String> scanLogs = [];
+  bool _connecting = false;
+  List<String> _logs = [];
 
-  Future<void> _scanNetwork() async {
-    setState(() {
-      isScanning = true;
-      devices = [];
-      scanLogs = ["🔍 Looking up bioamp.local..."];
-    });
-
-    final host = 'bioamp.local';
-    debugPrint("📡 Pinging $host");
-    final result = await _pingIp(host);
-
-    if (mounted) {
-      setState(() {
-        if (result.responded && result.isBioAmp) {
-          devices.add({'ip': host, 'name': result.name ?? 'BioAMP'});
-          scanLogs.add("✅ Found BioAMP at $host");
-        } else if (result.responded) {
-          scanLogs.add("🟡 $host responded as ${result.name ?? 'Unknown'}, not identified as BioAMP.");
-        } else {
-          scanLogs.add("❌ No response from $host.");
-        }
-        isScanning = false;
-      });
-    }
+  void _log(String msg) {
+    setState(() => _logs.add(msg));
   }
 
-  Future<_PingResult> _pingIp(String ip) async {
-    final url = Uri.parse('http://$ip/whoami');
-    try {
-      final response = await http.get(url).timeout(const Duration(milliseconds: 1500));
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        final name = data is Map && data.containsKey('name') ? data['name'] as String? : null;
-        final isBio = name == 'BioAMP';
-        return _PingResult(responded: true, isBioAmp: isBio, name: name, statusCode: 200);
-      } else {
-        return _PingResult(responded: true, isBioAmp: false, name: null, statusCode: response.statusCode);
-      }
-    } catch (e) {
-      debugPrint('Ping $ip failed: $e');
-      return const _PingResult(responded: false, isBioAmp: false);
+  Future<void> _connect() async {
+    if (_connecting) return;
+    setState(() {
+      _connecting = true;
+      _logs = ['Pinging $_kApIp...'];
+    });
+
+    final result = await _pingIp(_kApIp);
+
+    if (!mounted) return;
+
+    if (result.responded && result.isBioAmp) {
+      _log('BioAMP found. Connecting...');
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const OptionsPage(deviceIp: _kApIp)),
+      );
+    } else if (result.responded) {
+      _log('Device at $_kApIp responded as "${result.name ?? "Unknown"}" — not a BioAMP.');
+      _log('Make sure your phone is connected to the "$_kApSsid" Wi-Fi network.');
+    } else {
+      _log('No response from $_kApIp.');
+      _log('Is your phone connected to "$_kApSsid"?');
     }
+
+    if (mounted) setState(() => _connecting = false);
   }
 
   Future<void> _manualIpFlow() async {
+    String input = '';
     final ip = await showDialog<String>(
       context: context,
-      builder: (context) {
-        String input = '';
-        return AlertDialog(
-          title: const Text('Enter BioAMP IP'),
-          content: TextField(
-            keyboardType: TextInputType.number,
-            decoration: const InputDecoration(hintText: 'e.g. 192.168.137.158'),
-            onChanged: (v) => input = v.trim(),
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.of(context).pop(null), child: const Text('Cancel')),
-            ElevatedButton(onPressed: () => Navigator.of(context).pop(input), child: const Text('Ping')),
-          ],
-        );
-      },
+      builder: (ctx) => AlertDialog(
+        title: const Text('Enter BioAMP IP'),
+        content: TextField(
+          keyboardType: TextInputType.number,
+          decoration: const InputDecoration(hintText: 'e.g. 192.168.4.1'),
+          onChanged: (v) => input = v.trim(),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          ElevatedButton(onPressed: () => Navigator.pop(ctx, input), child: const Text('Connect')),
+        ],
+      ),
     );
 
     if (ip == null || ip.isEmpty) return;
 
     setState(() {
-      scanLogs.add('➡️ Manually pinging $ip...');
+      _connecting = true;
+      _logs.add('Pinging $ip...');
     });
 
-    // show progress dialog
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => const Center(child: CircularProgressIndicator()),
-    );
-
-    final result = await _pingIp(ip);
-
-    if (mounted) Navigator.of(context).pop(); // close progress
-
-    if (result.responded && result.isBioAmp) {
-      setState(() {
-        devices.add({'ip': ip, 'name': result.name ?? 'BioAMP'});
-        scanLogs.add('✅ $ip is a BioAMP. Selecting device.');
-      });
-      // navigate to options for selected device
-      if (mounted) {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => OptionsPage(deviceIp: ip)),
-        );
-      }
-      return;
+    // Show spinner while pinging
+    if (mounted) {
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => const Center(child: CircularProgressIndicator()),
+      );
     }
 
-    // Not responsive or not BioAMP -> show warning with option to continue anyway
-    final message = result.responded
-        ? 'Device responded${result.name != null ? ' as ${result.name}' : ''}, but it is not identified as BioAMP.'
-        : 'No response from $ip.';
-    setState(() => scanLogs.add('❌ $message'));
+    final result = await _pingIp(ip);
+    if (mounted) Navigator.of(context).pop(); // dismiss spinner
 
-    final choice = await showDialog<bool>(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Warning'),
-          content: Text('$message\n\nDo you want to continue anyway?'),
-          actions: [
-            TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancel')),
-            ElevatedButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('Continue Anyway')),
-          ],
-        );
-      },
-    );
-
-    if (choice == true) {
-      // Add the IP (unknown) and navigate despite warning
-      setState(() {
-        devices.add({'ip': ip, 'name': result.name ?? 'Unknown'});
-        scanLogs.add('⚠️ Continuing with $ip despite warning.');
-      });
+    if (result.responded && result.isBioAmp) {
+      _log('BioAMP confirmed at $ip.');
       if (mounted) {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => OptionsPage(deviceIp: ip)),
-        );
+        Navigator.push(context, MaterialPageRoute(builder: (_) => OptionsPage(deviceIp: ip)));
       }
+    } else {
+      final msg = result.responded
+          ? 'Responded as "${result.name ?? "Unknown"}", not identified as BioAMP.'
+          : 'No response from $ip.';
+      _log(msg);
+
+      final proceed = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Warning'),
+          content: Text('$msg\n\nConnect anyway?'),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+            ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Continue')),
+          ],
+        ),
+      );
+
+      if (proceed == true && mounted) {
+        Navigator.push(context, MaterialPageRoute(builder: (_) => OptionsPage(deviceIp: ip)));
+      }
+    }
+
+    if (mounted) setState(() => _connecting = false);
+  }
+
+  Future<({bool responded, bool isBioAmp, String? name})> _pingIp(String ip) async {
+    try {
+      final response = await http
+          .get(Uri.parse('http://$ip/whoami'))
+          .timeout(const Duration(milliseconds: 2000));
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final name = data is Map ? data['name'] as String? : null;
+        return (responded: true, isBioAmp: name == 'BioAMP', name: name);
+      }
+      return (responded: true, isBioAmp: false, name: null);
+    } catch (_) {
+      return (responded: false, isBioAmp: false, name: null);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Scan Wi-Fi Devices')),
+      appBar: AppBar(title: const Text('Connect to BioAMP')),
       body: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(20),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            ElevatedButton(
-              onPressed: isScanning ? null : _scanNetwork,
-              child: Text(isScanning ? 'Scanning...' : 'Scan Network'),
-            ),
-            const SizedBox(height: 20),
-            const Text("Discovered Devices", style: TextStyle(fontWeight: FontWeight.bold)),
-            Expanded(
-              flex: 2,
-              child: devices.isEmpty
-                  ? Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Text('No BioAMP devices found.'),
-                  const SizedBox(height: 12),
-                  ElevatedButton(
-                    onPressed: isScanning ? null : _manualIpFlow,
-                    child: const Text('Enter IP manually'),
-                  ),
-                ],
-              )
-                  : ListView.builder(
-                itemCount: devices.length,
-                itemBuilder: (context, index) {
-                  final device = devices[index];
-                  return ListTile(
-                    title: Text(device['name'] ?? 'Unknown'),
-                    subtitle: Text(device['ip']!),
-                    trailing: const Icon(Icons.arrow_forward),
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => OptionsPage(deviceIp: device['ip']!),
+            // AP connection instructions card
+            Card(
+              color: Theme.of(context).colorScheme.primaryContainer,
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Step 1 — Connect your phone to:',
+                      style: Theme.of(context).textTheme.titleSmall,
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        const Icon(Icons.wifi),
+                        const SizedBox(width: 8),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(_kApSsid,
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.bold, fontSize: 16)),
+                            Text('Password: $_kApPassword',
+                                style: const TextStyle(fontSize: 13)),
+                          ],
                         ),
-                      );
-                    },
-                  );
-                },
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      'Step 2 — Tap Connect below.',
+                      style: Theme.of(context).textTheme.titleSmall,
+                    ),
+                  ],
+                ),
               ),
             ),
-            const Divider(),
-            const Text("Debug Log", style: TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 20),
+            ElevatedButton.icon(
+              onPressed: _connecting ? null : _connect,
+              icon: _connecting
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.wifi_find),
+              label: Text(_connecting ? 'Connecting...' : 'Connect to BioAMP'),
+            ),
+            const SizedBox(height: 8),
+            TextButton(
+              onPressed: _connecting ? null : _manualIpFlow,
+              child: const Text('Enter IP manually'),
+            ),
+            const Divider(height: 32),
+            const Text('Log', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+            const SizedBox(height: 4),
             Expanded(
-              flex: 3,
               child: ListView.builder(
-                itemCount: scanLogs.length,
-                itemBuilder: (context, index) {
-                  return Text(scanLogs[index], style: const TextStyle(fontSize: 12));
-                },
+                itemCount: _logs.length,
+                itemBuilder: (_, i) =>
+                    Text(_logs[i], style: const TextStyle(fontSize: 12)),
               ),
             ),
           ],

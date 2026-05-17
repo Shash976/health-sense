@@ -21,7 +21,9 @@ class _VoltDashboardState extends State<VoltDashboard> {
   List<double> yValues = [];
   Timer? pollTimer;
   late ScrollController _scrollController;
-  bool _autoScroll = true; // default on
+  bool _autoScroll = true;
+  bool _polling = false; // guard against concurrent in-flight requests
+  bool _cancelled = false; // set in dispose so stale futures can self-abort
 
   @override
   void initState() {
@@ -29,16 +31,19 @@ class _VoltDashboardState extends State<VoltDashboard> {
     _scrollController = ScrollController();
     pollTimer = Timer.periodic(
       const Duration(milliseconds: 100),
-          (_) => fetchPoint(),
+      (_) => fetchPoint(),
     );
   }
 
   Future<void> fetchPoint() async {
+    if (_cancelled || _polling) return;
+    _polling = true;
     try {
       final url = Uri.parse(
         "http://${widget.deviceIp}/${widget.mode.toLowerCase()}data",
       );
       final response = await http.get(url);
+      if (_cancelled) return;
       debugPrint("${widget.mode.toUpperCase()} Response: ${response.body}");
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
@@ -49,13 +54,12 @@ class _VoltDashboardState extends State<VoltDashboard> {
               xValues.add((data["x"] as num).toDouble());
               yValues.add((data["y"] as num).toDouble());
             });
-            // Auto-scroll to the bottom if enabled
             if (_autoScroll) {
-              Future.delayed(const Duration(milliseconds: 50), () {
-                if (_scrollController.hasClients && mounted) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (!_cancelled && _scrollController.hasClients && mounted) {
                   _scrollController.animateTo(
                     _scrollController.position.maxScrollExtent,
-                    duration: const Duration(milliseconds: 500),
+                    duration: const Duration(milliseconds: 300),
                     curve: Curves.easeOut,
                   );
                 }
@@ -64,7 +68,11 @@ class _VoltDashboardState extends State<VoltDashboard> {
           }
         } else if (data["status"] == "${widget.mode.toLowerCase()}_done") {
           pollTimer?.cancel();
-          // handle completion (snackbar, nav, plot, etc.)
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text("${widget.mode.toUpperCase()} measurement complete — ${xValues.length} points collected.")),
+            );
+          }
         }
       }
     } on SocketException {
@@ -73,6 +81,8 @@ class _VoltDashboardState extends State<VoltDashboard> {
       );
     } catch (e) {
       debugPrint("Error polling ${widget.mode.toUpperCase()}: $e");
+    } finally {
+      _polling = false;
     }
   }
 
@@ -126,19 +136,17 @@ class _VoltDashboardState extends State<VoltDashboard> {
 
     final csvLines = <String>[isCV ? "x,y,cycle" : "x,y"];
     if (isCV && xValues.isNotEmpty) {
-      // Calculate cycles based on xValues
-      final double startX = xValues[0];
-      debugPrint("Start X: $startX");
+      // Detect cycles via direction reversal: every 2 x-direction reversals = 1 complete cycle.
       int cycle = 1;
-      double tolerance = 1e-8; // floating point tolerance
-      debugPrint("Tolerance: $tolerance");
+      int halfCycles = 0;
       for (int i = 0; i < xValues.length; i++) {
-        double x = xValues[i];
-        if (i > 0) {
-          // Check if we crossed the startX (from either direction)
-          if ((x - startX).abs() < tolerance) {
-            cycle++;
-            debugPrint("Cycle incremented to $cycle at index $i with x=$x");
+        if (i >= 2) {
+          final double prev = xValues[i - 1] - xValues[i - 2];
+          final double curr = xValues[i] - xValues[i - 1];
+          // A sign change in consecutive deltas means the sweep reversed direction.
+          if (prev.abs() > 1e-10 && curr.abs() > 1e-10 && prev * curr < 0) {
+            halfCycles++;
+            if (halfCycles % 2 == 0) cycle++; // forward+back = one full cycle
           }
         }
         csvLines.add("${xValues[i]},${yValues[i]},$cycle");
@@ -150,9 +158,8 @@ class _VoltDashboardState extends State<VoltDashboard> {
     }
         final csv = csvLines.join("\n");
 
-    final directory = Platform.isAndroid
-        ? Directory('/storage/emulated/0/Download')
-        : await getApplicationDocumentsDirectory();
+    final Directory directory =
+        (await getDownloadsDirectory()) ?? await getApplicationDocumentsDirectory();
 
     if (!(await directory.exists())) {
       await directory.create(recursive: true);
@@ -183,6 +190,7 @@ class _VoltDashboardState extends State<VoltDashboard> {
 
   @override
   void dispose() {
+    _cancelled = true;
     pollTimer?.cancel();
     _scrollController.dispose();
     super.dispose();

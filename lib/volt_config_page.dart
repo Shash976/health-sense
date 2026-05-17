@@ -18,7 +18,7 @@ class VoltConfigField {
   }) : keyboardType = keyboardType ?? const TextInputType.numberWithOptions(decimal: true);
 }
 
-class VoltConfigPage extends StatelessWidget {
+class VoltConfigPage extends StatefulWidget {
   final String deviceIp;
   final String title;
   final String endpoint;
@@ -36,21 +36,53 @@ class VoltConfigPage extends StatelessWidget {
     required this.buildConfig,
   });
 
-  void _start(BuildContext context) async {
-    final config = buildConfig(fields);
+  @override
+  State<VoltConfigPage> createState() => _VoltConfigPageState();
+}
+
+class _VoltConfigPageState extends State<VoltConfigPage> {
+  bool _loading = false;
+
+  bool _validate() {
+    for (final f in widget.fields) {
+      final text = f.controller.text.trim();
+      if (text.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('${f.label} cannot be empty.')),
+        );
+        return false;
+      }
+      // Attempt to parse — accept both int and double
+      if (double.tryParse(text) == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('${f.label} must be a valid number.')),
+        );
+        return false;
+      }
+    }
+    return true;
+  }
+
+  Future<void> _start() async {
+    if (_loading) return;
+    if (!_validate()) return;
+
+    setState(() => _loading = true);
+    final config = widget.buildConfig(widget.fields);
     try {
       final response = await http.post(
-        Uri.parse("http://$deviceIp/$endpoint"),
+        Uri.parse("http://${widget.deviceIp}/${widget.endpoint}"),
         headers: {"Content-Type": "application/json"},
         body: json.encode(config),
       );
+      if (!mounted) return;
       if (response.statusCode == 200) {
         Navigator.push(
           context,
           MaterialPageRoute(
             builder: (_) => VoltDashboard(
-              deviceIp: deviceIp,
-              mode: mode,
+              deviceIp: widget.deviceIp,
+              mode: widget.mode,
             ),
           ),
         );
@@ -58,35 +90,42 @@ class VoltConfigPage extends StatelessWidget {
         throw Exception("Error: ${response.statusCode}");
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Failed to start $mode: $e")),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Failed to start ${widget.mode}: $e")),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _loading = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(title)),
+      appBar: AppBar(title: Text(widget.title)),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            ...fields.map((f) => Padding(
+            ...widget.fields.map((f) => Padding(
               padding: const EdgeInsets.only(bottom: 12),
               child: TextField(
                 controller: f.controller,
                 keyboardType: f.keyboardType,
                 inputFormatters: f.inputFormatters,
+                enabled: !_loading,
                 decoration: InputDecoration(labelText: f.label, border: const OutlineInputBorder()),
               ),
             )),
             const SizedBox(height: 20),
             ElevatedButton.icon(
-              onPressed: () => _start(context),
-              icon: const Icon(Icons.send),
-              label: Text("Start $mode"),
-            )
+              onPressed: _loading ? null : _start,
+              icon: _loading
+                  ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                  : const Icon(Icons.send),
+              label: Text(_loading ? "Starting..." : "Start ${widget.mode}"),
+            ),
           ],
         ),
       ),

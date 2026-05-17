@@ -1,4 +1,4 @@
-// Combined Arduino Project: WiFi + CV + Analyte + Communication
+// Combined Arduino Project: WiFi AP + CV + Analyte + Communication
 #include <SPI.h>
 #include <Wire.h>
 #include <Adafruit_GFX.h>
@@ -8,8 +8,11 @@
 #include <Adafruit_ADS1X15.h>
 #include <WiFiNINA.h>
 #include <ArduinoJson.h>
-#include <FlashStorage.h>
 #include "logo_bitmap.h"
+
+// --- Access Point credentials ---
+#define AP_SSID     "BioAMP"
+#define AP_PASSWORD "bioamp123"
 
 // --- Pin Configuration ---
 #define TFT_CS   10
@@ -31,22 +34,6 @@ int TS_MAXY;
 
 #define SCREEN_WIDTH  240
 #define SCREEN_HEIGHT 320
-
-// --- WiFi Management ---
-struct WiFiCredentials {
-  char ssid[32];
-  char password[64];
-};
-
-FlashStorage(wifiCreds, WiFiCredentials);
-
-int networks = 0;
-String password = "";
-String selectedSSID = "";
-bool enteringPassword = false;
-bool shiftEnabled = false;
-bool numEnabled = false;
-bool symbolEnabled = false;  // 🆕 added
 
 #define V_REF 4.8 // From Touchscreen_CV, not same as that in Touch_BILLI (4.45) [CROSS-CHECK]
 #define DAC_RESOLUTION 4095
@@ -83,6 +70,7 @@ struct Analyte {
 Analyte analyte;
 
 double result = 0.0;
+bool resultReady = false; // true once performTest() has stored a valid result
 bool processing = false;
 bool processingStarted = false;
 
@@ -124,7 +112,6 @@ int MEASURE_INTERVAL;
 WiFiServer server(80);
 
 enum Mode {
-  WIFI,
   OPTIONS,
   V_OPTIONS,
   CV,
@@ -155,263 +142,7 @@ Analyte analytes[] = {
 const int NUM_ANALYTES = sizeof(analytes)/sizeof(analytes[0]);
 
 
-//===== Connect to WiFi ======
 
-int drawWiFiList() {
-  tft.fillScreen(ILI9341_WHITE);
-  tft.setTextColor(ILI9341_BLACK);
-  tft.setTextSize(2);
-  tft.setCursor(10, 10);
-  tft.print("Select Wi-Fi:");
-
-  // Draw Forget WiFi button
-  tft.fillRoundRect(10, 250, 220, 30, 5, ILI9341_RED);
-  tft.setCursor(60, 258);
-  tft.setTextColor(ILI9341_WHITE);
-  tft.setTextSize(2);
-  tft.print("Forget WiFi");
-
-  // Draw Exit button
-  tft.fillRoundRect(10, 285, 220, 30, 5, ILI9341_RED);
-  tft.setCursor(80, 293);
-  tft.setTextColor(ILI9341_WHITE);
-  tft.setTextSize(2);
-  tft.print("Exit");
-
-  networks = WiFi.scanNetworks();
-  if (networks == 0) {
-    tft.setCursor(10, 50);
-    tft.setTextSize(1);
-    tft.setTextColor(ILI9341_BLACK);
-    tft.print("No networks found");
-  } else {
-    for (int i = 0; i < networks && i < 6; i++) {
-      tft.fillRoundRect(10, 40 + i * 40, 220, 30, 5, ILI9341_CYAN);
-      tft.setCursor(15, 48 + i * 40);
-      tft.setTextColor(ILI9341_BLACK);
-      tft.setTextSize(1);
-      tft.print(WiFi.SSID(i));
-    }
-  }
-
-  return networks;
-}
-
-void drawKeyboard() {
-  tft.fillScreen(ILI9341_WHITE);
-  tft.setTextColor(ILI9341_BLACK);
-  tft.setTextSize(2);
-  tft.setCursor(10, 5);
-  tft.print("Enter Password:");
-
-  tft.drawRect(10, 30, 220, 25, ILI9341_BLACK);
-  tft.setCursor(15, 35);
-  tft.print(password);
-
-  const char* row1 = shiftEnabled ? "QWERTYUIOP" : "qwertyuiop";
-  const char* row2 = shiftEnabled ? "ASDFGHJKL" : "asdfghjkl";
-  const char* row3 = shiftEnabled ? "ZXCVBNM" : "zxcvbnm";
-  const char* numRow = "1234567890";
-  const char* symRow = "!@#$%^&*()";
-
-  // Row 1
-  for (int i = 0; i < 10; i++) {
-    tft.fillRoundRect(5 + i * 22, 70, 20, 25, 3, ILI9341_LIGHTGREY);
-    tft.setCursor(10 + i * 22, 75);
-    tft.setTextColor(ILI9341_BLACK);
-    tft.setTextSize(1);
-    if (symbolEnabled)
-      tft.print(symRow[i]);
-    else if (numEnabled)
-      tft.print(numRow[i]);
-    else
-      tft.print(row1[i]);
-  }
-
-  // Row 2
-  if (!numEnabled && !symbolEnabled) {
-    for (int i = 0; i < 9; i++) {
-      tft.fillRoundRect(15 + i * 22, 100, 20, 25, 3, ILI9341_LIGHTGREY);
-      tft.setCursor(20 + i * 22, 105);
-      tft.print(row2[i]);
-    }
-
-    // Row 3
-    for (int i = 0; i < 7; i++) {
-      tft.fillRoundRect(35 + i * 22, 130, 20, 25, 3, ILI9341_LIGHTGREY);
-      tft.setCursor(40 + i * 22, 135);
-      tft.print(row3[i]);
-    }
-  }
-
-  // Shift button
-  tft.fillRoundRect(5, 170, 40, 30, 5, shiftEnabled ? ILI9341_BLUE : ILI9341_DARKGREY);
-  tft.setCursor(12, 180);
-  tft.setTextColor(ILI9341_WHITE);
-  tft.setTextSize(1);
-  tft.print("shift");
-
-  // Num button
-  tft.fillRoundRect(55, 170, 40, 30, 5, numEnabled ? ILI9341_BLUE : ILI9341_DARKGREY);
-  tft.setCursor(68, 180);
-  tft.print("num");
-
-  // Symbol button
-  tft.fillRoundRect(105, 170, 40, 30, 5, symbolEnabled ? ILI9341_BLUE : ILI9341_DARKGREY);
-  tft.setCursor(112, 180);
-  tft.print("sym");
-
-  // Del button
-  tft.fillRoundRect(155, 170, 35, 30, 5, ILI9341_RED);
-  tft.setCursor(160, 178);
-  tft.setTextColor(ILI9341_WHITE);
-  tft.setTextSize(2);
-  tft.print("<");
-
-  // OK button
-  tft.fillRoundRect(195, 170, 40, 30, 5, ILI9341_GREEN);
-  tft.setCursor(200, 178);
-  tft.print("OK");
-}
-
-void handleKeyboardTouch(int x, int y) {
-  const char* row1 = shiftEnabled ? "QWERTYUIOP" : "qwertyuiop";
-  const char* row2 = shiftEnabled ? "ASDFGHJKL" : "asdfghjkl";
-  const char* row3 = shiftEnabled ? "ZXCVBNM" : "zxcvbnm";
-  const char* numRow = "1234567890";
-  const char* symRow = "!@#$%^&*()";
-
-  // Row 1
-  if (y > 70 && y < 95) {
-    int keyIndex = (x - 5) / 22;
-    if (keyIndex >= 0 && keyIndex < 10) {
-      if (symbolEnabled){
-        password += symRow[keyIndex];
-        Serial.println(symRow[keyIndex]);
-      }
-      else if (numEnabled){
-        password += numRow[keyIndex];
-        Serial.println(numRow[keyIndex]);
-      }
-      else{
-        password += row1[keyIndex];
-        Serial.println(row1[keyIndex]);
-      }
-      drawKeyboard();
-      return;
-    }
-  }
-
-  // Row 2
-  if (y > 100 && y < 125 && !numEnabled && !symbolEnabled) {
-    int keyIndex = (x - 15) / 22;
-    if (keyIndex >= 0 && keyIndex < 9) {
-      password += row2[keyIndex];
-      Serial.println(row2[keyIndex]);
-      drawKeyboard();
-      return;
-    }
-  }
-
-  // Row 3
-  if (y > 130 && y < 155 && !numEnabled && !symbolEnabled) {
-    int keyIndex = (x - 35) / 22;
-    if (keyIndex >= 0 && keyIndex < 7) {
-      password += row3[keyIndex];
-      Serial.println(row3[keyIndex]);
-      drawKeyboard();
-      return;
-    }
-  }
-
-  // Shift button
-  if (x > 5 && x < 45 && y > 170 && y < 200 && !numEnabled && !symbolEnabled) {
-    shiftEnabled = !shiftEnabled;
-    Serial.print("Shift button pressed.");
-    shiftEnabled ? Serial.println("Shift enabled") : Serial.println("Shift disabled");
-    drawKeyboard();
-    return;
-  }
-
-  // Num button
-  if (x > 55 && x < 95 && y > 170 && y < 200) {
-    numEnabled = !numEnabled;
-    symbolEnabled = false;
-    shiftEnabled = false;
-    Serial.print("Num button pressed.");
-    numEnabled ? Serial.println("Numbers enabled") : Serial.println("Numbers disabled");
-    drawKeyboard();
-    return;
-  }
-
-  // Sym button
-  if (x > 105 && x < 145 && y > 170 && y < 200) {
-    symbolEnabled = !symbolEnabled;
-    numEnabled = false;
-    shiftEnabled = false;
-    Serial.print("Symbol button pressed.");
-    symbolEnabled ? Serial.println("Symbols enabled") : Serial.println("Symbols disabled");
-    drawKeyboard();
-    return;
-  }
-
-  // Del button
-  if (x > 155 && x < 190 && y > 170 && y < 200) {
-    if (password.length() > 0) {
-      password.remove(password.length() - 1);
-      drawKeyboard();
-    }
-    Serial.println("Delete button pressed");
-    return;
-  }
-
-  // OK button
-  if (x > 195 && x < 235 && y > 170 && y < 200) {
-    tft.fillScreen(ILI9341_WHITE);
-    tft.setCursor(10, 100);
-    tft.setTextColor(ILI9341_BLACK);
-    tft.setTextSize(2);
-    tft.print("Connecting...");
-    Serial.print("OK Button pressed. Entering password: "); Serial.println(password);
-    Serial.println("\n✅ Connecting...  ");
-
-    WiFi.begin(selectedSSID.c_str(), password.c_str());
-    delay(2000);
-
-    if (WiFi.status() == WL_CONNECTED) {
-      Serial.print("\n✅ Connected to "); Serial.print(selectedSSID.c_str()); Serial.print("IP: ");
-      Serial.println(WiFi.localIP());
-      server.begin();
-      Serial.println("Server started");
-      WiFiCredentials creds;
-      strncpy(creds.ssid, selectedSSID.c_str(), sizeof(creds.ssid));
-      strncpy(creds.password, password.c_str(), sizeof(creds.password));
-      wifiCreds.write(creds);
-
-      tft.fillScreen(ILI9341_GREEN);
-      tft.setCursor(10, 140);
-      tft.setTextColor(ILI9341_WHITE);
-      tft.print("Connected!");
-      
-      delay(1000);
-
-      drawGeneralOptionsScreen();
-      currentMode = OPTIONS;
-      Serial.println("Switched to options");
-
-    } else {
-      tft.fillScreen(ILI9341_RED);
-      tft.setCursor(10, 140);
-      tft.setTextColor(ILI9341_WHITE);
-      tft.print("Failed!");
-      Serial.println("Failed to connect");
-      delay(3000);
-      password = "";
-      drawWiFiList();
-      enteringPassword = false;
-    }
-  }
-}
 
 void waitForTouchRelease() {
   while (ts.touched()) {
@@ -423,35 +154,47 @@ void waitForTouchRelease() {
 void drawWelcomeScreen() {
   tft.fillScreen(ILI9341_WHITE);
 
-  // Draw Logo
-  int logoX = (tft.width() - LOGO_WIDTH) / 2;
-  int logoY = 30;
-  tft.drawRGBBitmap(logoX, logoY, logoBitmap, LOGO_WIDTH, LOGO_HEIGHT);
-
-  // Welcome Text Box
-  tft.fillRoundRect(3, 5, 235, 50, 10, ILI9341_ORANGE);
+  // Title bar
+  tft.fillRoundRect(3, 5, 235, 30, 8, ILI9341_ORANGE);
   tft.setTextColor(ILI9341_BLACK);
   tft.setTextSize(2);
-  tft.setCursor(45, 20);
+  tft.setCursor(45, 12);
   tft.print("Health-Sense");
 
-  // Demo Mode Button
-  tft.fillRoundRect(15, 280, 100, 60, 10, ILI9341_BLUE);
+  // Logo
+  int logoX = (tft.width() - LOGO_WIDTH) / 2;
+  tft.drawRGBBitmap(logoX, 40, logoBitmap, LOGO_WIDTH, LOGO_HEIGHT);
+
+  // AP info box
+  tft.fillRoundRect(5, 185, 230, 60, 6, ILI9341_LIGHTGREY);
+  tft.setTextColor(ILI9341_BLACK);
+  tft.setTextSize(1);
+  tft.setCursor(10, 193);
+  tft.print("Connect phone to Wi-Fi:");
+  tft.setTextSize(2);
+  tft.setCursor(10, 205);
+  tft.print(AP_SSID);
+  tft.setTextSize(1);
+  tft.setCursor(10, 225);
+  tft.print("Password: "); tft.print(AP_PASSWORD);
+  tft.setCursor(10, 237);
+  tft.print("IP: 192.168.4.1");
+
+  // Demo button
+  tft.fillRoundRect(15, 258, 100, 45, 8, ILI9341_BLUE);
   tft.setTextColor(ILI9341_WHITE);
   tft.setTextSize(2);
-  tft.setCursor(30, 292);
+  tft.setCursor(30, 272);
   tft.print("Demo");
 
-  // Get Started Button
-  tft.fillRoundRect(125, 280, 100, 60, 10, ILI9341_GREEN);
+  // Start button
+  tft.fillRoundRect(125, 258, 100, 45, 8, ILI9341_GREEN);
   tft.setTextColor(ILI9341_BLACK);
   tft.setTextSize(2);
-  tft.setCursor(140, 292);
+  tft.setCursor(140, 272);
   tft.print("Start");
 
-  Serial.println("Welcom Screen drawn"  );
-
-  
+  Serial.println("Welcome screen drawn");
 }
 
 //=== Graph UI=====
@@ -643,16 +386,14 @@ void drawDemoInputScreen() {
 //================= SETUP ==============
 
 void setup() {
-  // put your setup code here, to run once:
   Serial.begin(115200);
-  delay(1000);
+  delay(500);
 
   if (WiFi.status() == WL_NO_MODULE) {
     Serial.println("WiFi module not found!");
     while (true);
   }
 
-  Serial.println("Starting Touchscreen");
   tft.begin();
   ts.begin();
   ts.setRotation(0);
@@ -663,11 +404,15 @@ void setup() {
   ads.setGain(GAIN_TWOTHIRDS);
   ads.begin();
 
-  Serial.println("Welcome, drawing welcome screen");
+  // Start access point — phone connects directly, no router needed.
+  Serial.print("Starting AP: "); Serial.println(AP_SSID);
+  WiFi.beginAP(AP_SSID, AP_PASSWORD);
+  delay(1000);
+  server.begin();
+  Serial.print("AP IP: "); Serial.println(WiFi.localIP());
 
   drawWelcomeScreen();
   currentMode = Mode::WELCOME;
-  
 }
 
 void respondJSON(WiFiClient& client, const String& json, int code = 200) {
@@ -767,103 +512,21 @@ void loop() {
       TS_MAXY = 3135;
       x = map(p.x, TS_MAXX, TS_MINX, 0, SCREEN_WIDTH);
       y = map(p.y, TS_MAXY, TS_MINY, 0, SCREEN_HEIGHT);
-      if (x >= 125 && x <= 225 && y >= 280 && y <= 340){
-        Serial.println("Clicked Get Started.");
-        WiFiCredentials saved = wifiCreds.read();
-        bool autoConnectSuccess = false;
+
+      // Start button — AP is already running, go straight to options.
+      if (x >= 125 && x <= 225 && y >= 258 && y <= 303) {
+        Serial.println("Start tapped — entering options.");
         demoMode = false;
-
-        if (strlen(saved.ssid) > 0) {
-          Serial.println("Found saved WIFI");
-          WiFi.begin(saved.ssid, saved.password);
-          Serial.print("SSID: "); Serial.println(saved.ssid);
-          Serial.print("Password: "); Serial.println(saved.password);
-          delay(1000);
-          if (WiFi.status() == WL_CONNECTED) {
-            Serial.println("Connected!");
-            tft.fillScreen(ILI9341_GREEN);
-            tft.setCursor(10, 140);
-            tft.setTextColor(ILI9341_WHITE);
-            tft.setTextSize(2);
-            tft.print("Auto Connected!");
-            Serial.print("\n✅ Auto Connected \nConnected. IP: ");
-            Serial.println(WiFi.localIP());
-            server.begin();
-            Serial.println("Server has started.");
-            autoConnectSuccess = true;
-            delay(100);
-            drawGeneralOptionsScreen();
-            currentMode = OPTIONS;
-          }
-        }
-
-        if (!autoConnectSuccess) {
-          Serial.println("No saved wifi, did not connect");
-          Serial.println("Could not auto-connect. Changing currentMode to WIFI");
-          currentMode = WIFI;
-         //drawWiFiList();
-         drawWiFiList();
-        }
+        drawGeneralOptionsScreen();
+        currentMode = OPTIONS;
       }
-      if (x >= 15 && x <= 115 && y >= 280 && y <= 340){ // Demo button cords 
+      // Demo button
+      if (x >= 15 && x <= 115 && y >= 258 && y <= 303) {
         Serial.println("Demo mode selected.");
         demoMode = true;
-        currentMode = OPTIONS;
         drawGeneralOptionsScreen();
+        currentMode = OPTIONS;
       }
-    } else if (currentMode == WIFI) {
-        TS_MINX = 329;
-        TS_MAXX = 3835;
-        TS_MINY = 530;
-        TS_MAXY = 3800;
-
-        x = map(p.x, TS_MAXX, TS_MINX, 0, SCREEN_WIDTH);
-        y = map(p.y, TS_MAXY, TS_MINY, 0, SCREEN_HEIGHT);
-        x = constrain(x + 1, 0, SCREEN_WIDTH);
-        Serial.print("X: "); Serial.print(x); Serial.print(", Y: "); Serial.println(y);
-        Serial.println(TS_MAXX);
-        Serial.println("Current Mode: WIFI");
-        if (enteringPassword) {
-          Serial.println("password input entered");
-          handleKeyboardTouch(x, y);
-          waitForTouchRelease();
-          return;
-        }
-        // Check Forget WiFi button
-        if (x > 10 && x < 230 && y > 250 && y < 280) {
-          WiFiCredentials blank = { "", "" };
-          wifiCreds.write(blank);
-          tft.fillScreen(ILI9341_YELLOW);
-          tft.setCursor(10, 140);
-          tft.setTextColor(ILI9341_BLACK);
-          tft.setTextSize(2);
-          tft.print("WiFi Cleared!");
-          delay(2000);
-          drawWiFiList();
-          waitForTouchRelease();
-          return;
-        }
-        if (x > 10 && x < 230 && y > 285 && y < 315) { // Exit to welcome screen
-          currentMode = Mode::WELCOME;
-          drawWelcomeScreen();
-        }
-        // Select WIFI
-        for (int i = 0; i < networks && i < 6; i++) {
-          int btnX = 10, btnY = 40 + i * 40, btnW = 220, btnH = 30;
-          if (x > btnX && x < btnX + btnW && y > btnY && y < btnY + btnH) {
-            selectedSSID = WiFi.SSID(i);
-            Serial.print("Selected WIFI with SSID "); Serial.println(selectedSSID);
-            password = "";
-            enteringPassword = true;
-            Serial.print("Entering password for "); Serial.println(selectedSSID);
-            shiftEnabled = false;
-            numEnabled = false;
-            symbolEnabled = false;
-            drawKeyboard();
-            waitForTouchRelease();
-            return;
-          }
-        }
     } else if (currentMode == CV){
         TS_MINX = 732;
         TS_MAXX = 3379;
@@ -950,28 +613,23 @@ void loop() {
         
         
         if (x > 20 && x < 220) {
-          if (y > 60 && y < 100 && !demoMode) {
-            Serial.println("Switching to WIFI");
-            currentMode = Mode::WIFI;
-            drawWiFiList();
-            return;
-          } else if (y > 110 && y < 150) {
+          if (y > 70 && y < 120) {
             Serial.println("Switching to V Options");
             drawVoltammetryOptionsScreen();
             currentMode = Mode::V_OPTIONS;
             return;
-          } else if (y > 160 && y < 200) {
-            Serial.println("Switiching to Amp");
+          } else if (y > 135 && y < 185) {
+            Serial.println("Switching to Analyte");
             if (demoMode) drawAnalyteDemoMenu(analyteCurrentPage);
             currentMode = Mode::ANALYTE;
             return;
-          } else if (y > 210 && y < 250) {
-            Serial.println("Exit Clicked. Going back to welcome screen.");
+          } else if (y > 200 && y < 250) {
+            Serial.println("Exit — back to welcome screen.");
             drawWelcomeScreen();
             currentMode = Mode::WELCOME;
             return;
+          }
         }
-      }
     } else if (currentMode == V_OPTIONS) {
       Serial.println("Voltammetry Options");
       TS_Point p = ts.getPoint();
@@ -1356,6 +1014,7 @@ void performTest(Analyte a) {
   float current_uA = current_mA *1000;
   float Concentration = (current_uA-a.calibConstant) / a.calibSlope; // y=mx+c -> x = (y-c)/m
   result = Concentration;
+  resultReady = true;
   Serial.println("Test is done");
   showResult(a, Concentration, current_mA);
 }
@@ -1433,7 +1092,8 @@ void startAmp(){
   ampCurrent = 0.0;
   ampTime = 0;
   ampSteps = AMP_RUN_TIME * 1000 / MEASURE_INTERVAL;
-  int dacVal = (int)((OX_POTENTIAL+ 1.0 / V_REF) * DAC_RESOLUTION);
+  // Operator-precedence fix: add V_SHIFT first, then divide — same pattern as performTest().
+  int dacVal = (int)(((OX_POTENTIAL + 1.0) / V_REF) * DAC_RESOLUTION);
   dac.setVoltage(dacVal, false);
   ampRunning = true;
 }
@@ -1462,29 +1122,20 @@ void drawGeneralOptionsScreen() {
   tft.setCursor(10, 20);
   tft.print("Select Option:");
 
-  if (!demoMode) {
-    // Draw 4 buttons
-    tft.fillRoundRect(20, 60, 200, 40, 8, ILI9341_BLUE);
-    tft.setCursor(50, 75);
-    tft.setTextColor(ILI9341_WHITE);
-    tft.print("WiFi Settings");
-  }
-
-  tft.fillRoundRect(20, 110, 200, 40, 8, ILI9341_CYAN);
-  tft.setCursor(40, 125);
+  tft.fillRoundRect(20, 70, 200, 50, 8, ILI9341_CYAN);
+  tft.setCursor(40, 88);
   tft.setTextColor(ILI9341_BLACK);
   tft.print("Voltammetry");
 
-  tft.fillRoundRect(20, 160, 200, 40, 8, ILI9341_GREEN);
-  tft.setCursor(35, 175);
+  tft.fillRoundRect(20, 135, 200, 50, 8, ILI9341_GREEN);
+  tft.setCursor(35, 153);
   tft.setTextColor(ILI9341_WHITE);
   tft.print("Analyte Test");
 
-  tft.fillRoundRect(20, 210, 200, 40, 8, ILI9341_RED);
-  tft.setCursor(80, 225);
+  tft.fillRoundRect(20, 200, 200, 50, 8, ILI9341_RED);
+  tft.setCursor(80, 218);
   tft.setTextColor(ILI9341_WHITE);
   tft.print("Exit");
-
 }
 
 void drawVoltammetryOptionsScreen() {
@@ -1558,17 +1209,20 @@ void handleWhoAmI(WiFiClient& client) {
 }
 
 void handleGetResult(WiFiClient& client) {
-   if (result != 0.0) {
-    processing = false;
-    respondJSON(client, "{\"value\":" + String(result, 2) + "}");
+  if (resultReady) {
+    // Consume the result — clear before responding so a second poll gets not_started.
+    double val = result;
     result = 0.0;
+    resultReady = false;
+    processing = false;
     processingStarted = false;
-
-  } 
-  else if (processing) respondJSON(client, "{\"status\":\"processing\"}");
-  else if (processingStarted) respondJSON(client, "{\"status\":\"processing\"}");
-  else respondJSON(client, "{\"status\":\"not_started\"}");
-  Serial.println(result);
+    respondJSON(client, "{\"value\":" + String(val, 2) + "}");
+    Serial.println(val);
+  } else if (processing || processingStarted) {
+    respondJSON(client, "{\"status\":\"processing\"}");
+  } else {
+    respondJSON(client, "{\"status\":\"not_started\"}");
+  }
 }
 
 void handlePostTest(WiFiClient& client) {
@@ -1590,7 +1244,8 @@ void handlePostTest(WiFiClient& client) {
 
   Serial.println(body);
   result = 0.0;
-  Analyte a  = analyte;
+  resultReady = false;
+  Analyte a = analyte;
 
   processing = true;
   processingStarted = true;
