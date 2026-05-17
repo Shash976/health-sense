@@ -42,7 +42,7 @@ class _VoltDashboardState extends State<VoltDashboard> {
       final url = Uri.parse(
         "http://${widget.deviceIp}/${widget.mode.toLowerCase()}data",
       );
-      final response = await http.get(url);
+      final response = await http.get(url).timeout(const Duration(seconds: 5));
       if (_cancelled) return;
       debugPrint("${widget.mode.toUpperCase()} Response: ${response.body}");
       if (response.statusCode == 200) {
@@ -92,100 +92,104 @@ class _VoltDashboardState extends State<VoltDashboard> {
     double? concentration;
 
     if (isCV) {
+      final controller = TextEditingController();
       concentration = await showDialog<double>(
         context: context,
-        builder: (context) {
-          final controller = TextEditingController();
-          return AlertDialog(
-            title: const Text("Enter Concentration"),
-            content: TextField(
-              controller: controller,
-              keyboardType: TextInputType.numberWithOptions(decimal: true),
-              decoration: const InputDecoration(hintText: "e.g. 0.1 or 5.2"),
+        builder: (ctx) => AlertDialog(
+          title: const Text("Enter Concentration"),
+          content: TextField(
+            controller: controller,
+            keyboardType: TextInputType.numberWithOptions(decimal: true),
+            decoration: const InputDecoration(hintText: "e.g. 0.1 or 5.2"),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text("Cancel"),
             ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: const Text("Cancel"),
-              ),
-              TextButton(
-                onPressed: () {
-                  final value = double.tryParse(
-                    controller.text.replaceAll(',', '.'),
-                  );
-                  if (value != null) {
-                    Navigator.of(context).pop(value);
-                  }
-                },
-                child: const Text("OK"),
-              ),
-            ],
-          );
-        },
+            TextButton(
+              onPressed: () {
+                final value = double.tryParse(
+                  controller.text.replaceAll(',', '.'),
+                );
+                if (value != null) Navigator.of(ctx).pop(value);
+              },
+              child: const Text("OK"),
+            ),
+          ],
+        ),
       );
+      controller.dispose();
 
-      if (concentration == null) {
-        // User cancelled
-        return;
-      }
+      if (concentration == null) return;
       final concStr = concentration.toString().replaceAll('.', '_');
       fileName = "cv_data_$concStr.csv";
     } else {
       fileName = "${widget.mode.toLowerCase()}_data.csv";
     }
 
+    // Snapshot the lists before async work to avoid race with the poll timer.
+    final xs = List<double>.from(xValues);
+    final ys = List<double>.from(yValues);
+
     final csvLines = <String>[isCV ? "x,y,cycle" : "x,y"];
-    if (isCV && xValues.isNotEmpty) {
-      // Detect cycles via direction reversal: every 2 x-direction reversals = 1 complete cycle.
+    if (isCV && xs.isNotEmpty) {
       int cycle = 1;
       int halfCycles = 0;
-      for (int i = 0; i < xValues.length; i++) {
+      for (int i = 0; i < xs.length; i++) {
         if (i >= 2) {
-          final double prev = xValues[i - 1] - xValues[i - 2];
-          final double curr = xValues[i] - xValues[i - 1];
-          // A sign change in consecutive deltas means the sweep reversed direction.
+          final double prev = xs[i - 1] - xs[i - 2];
+          final double curr = xs[i] - xs[i - 1];
           if (prev.abs() > 1e-10 && curr.abs() > 1e-10 && prev * curr < 0) {
             halfCycles++;
-            if (halfCycles % 2 == 0) cycle++; // forward+back = one full cycle
+            if (halfCycles % 2 == 0) cycle++;
           }
         }
-        csvLines.add("${xValues[i]},${yValues[i]},$cycle");
+        csvLines.add("${xs[i]},${ys[i]},$cycle");
       }
     } else {
-      for (int i = 0; i < xValues.length; i++) {
-        csvLines.add("${xValues[i]},${yValues[i]}");
+      for (int i = 0; i < xs.length; i++) {
+        csvLines.add("${xs[i]},${ys[i]}");
       }
     }
-        final csv = csvLines.join("\n");
+    final csv = csvLines.join("\n");
 
-    final Directory directory =
-        (await getDownloadsDirectory()) ?? await getApplicationDocumentsDirectory();
-
-    if (!(await directory.exists())) {
-      await directory.create(recursive: true);
-    }
-
-    final filePath = "${directory.path}/$fileName";
-    final file = File(filePath);
-    await file.writeAsString(csv);
-
-    // Ensure you have `import 'package:flutter_downloader/flutter_downloader.dart';`
-    // Enqueue a task so the Download manager/notification is used
     try {
-      await FlutterDownloader.enqueue(
-        url: 'file://$filePath',
-        savedDir: directory.path,
-        fileName: fileName,
-        showNotification: true,
-        openFileFromNotification: true,
-      );
-    } catch (e) {
-      debugPrint('FlutterDownloader enqueue failed: $e');
-    }
+      final Directory directory =
+          (await getDownloadsDirectory()) ?? await getApplicationDocumentsDirectory();
 
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text("CSV saved to: $filePath")));
+      if (!(await directory.exists())) {
+        await directory.create(recursive: true);
+      }
+
+      final filePath = "${directory.path}/$fileName";
+      final file = File(filePath);
+      await file.writeAsString(csv);
+
+      try {
+        await FlutterDownloader.enqueue(
+          url: 'file://$filePath',
+          savedDir: directory.path,
+          fileName: fileName,
+          showNotification: true,
+          openFileFromNotification: true,
+        );
+      } catch (e) {
+        debugPrint('FlutterDownloader enqueue failed: $e');
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("CSV saved to: $filePath")),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Failed to save CSV: $e")),
+        );
+      }
+    }
   }
 
   @override

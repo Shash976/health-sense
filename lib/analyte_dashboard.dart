@@ -22,33 +22,41 @@ class AnalyteDashboard extends StatefulWidget {
 
 class _AnalyteDashboardState extends State<AnalyteDashboard> {
   double? value;
+  String? _errorMessage;
   bool _cancelled = false;
+  int _pollCount = 0;
+  static const int _maxPolls = 150; // 5-minute cap at 2-second intervals
 
   Future<void> _fetchValue() async {
     if (_cancelled) return;
+    if (_pollCount >= _maxPolls) {
+      if (mounted) setState(() => _errorMessage = 'Timed out waiting for result.');
+      return;
+    }
+    _pollCount++;
     try {
       final url = Uri.parse('http://${widget.deviceIp}/result');
-      final response = await http.get(url);
-      if (_cancelled) return;
+      final response = await http.get(url).timeout(const Duration(seconds: 10));
+      if (_cancelled || !mounted) return;
       debugPrint("Response: ${response.body}");
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         if (data.containsKey('value')) {
-          if (mounted) {
-            setState(() {
-              value = (data['value'] as num).toDouble();
-            });
-          }
+          setState(() {
+            value = (data['value'] as num).toDouble();
+          });
         } else if (data['status'] == 'processing') {
           Future.delayed(const Duration(seconds: 2), () {
             if (!_cancelled) _fetchValue();
           });
         } else {
-          debugPrint("Unexpected response: $data");
+          setState(() => _errorMessage = 'Unexpected response from device.');
         }
+      } else {
+        setState(() => _errorMessage = 'Device returned status ${response.statusCode}.');
       }
     } catch (e) {
-      debugPrint("Failed to fetch result: $e");
+      if (mounted) setState(() => _errorMessage = 'Network error: $e');
     }
   }
 
@@ -74,9 +82,15 @@ class _AnalyteDashboardState extends State<AnalyteDashboard> {
           ? Center(child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Text("Fetching results..."),
-                const SizedBox(height: 16),
-                const CircularProgressIndicator(),
+                if (_errorMessage != null) ...[
+                  const Icon(Icons.error_outline, color: Colors.red, size: 40),
+                  const SizedBox(height: 12),
+                  Text(_errorMessage!, style: const TextStyle(color: Colors.red)),
+                ] else ...[
+                  const Text("Fetching results..."),
+                  const SizedBox(height: 16),
+                  const CircularProgressIndicator(),
+                ],
               ],
             ))
           : Padding(

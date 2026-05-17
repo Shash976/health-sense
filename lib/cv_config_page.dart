@@ -41,14 +41,13 @@ class CVConfigPage extends StatelessWidget {
       endpoint: "cv",
       mode: "CV",
       fields: fields,
-      buildConfig:
-          (fields) => {
-            "mode": "cv",
-            "startVoltage": double.tryParse(fields[0].controller.text) ?? 0.0,
-            "endVoltage": double.tryParse(fields[1].controller.text) ?? 1.0,
-            "scanRate": double.tryParse(fields[2].controller.text) ?? 1.0,
-            "cycles": int.tryParse(fields[3].controller.text) ?? 3,
-          },
+      buildConfig: (fields) => {
+        "mode": "cv",
+        "startVoltage": double.tryParse(fields[0].controller.text) ?? -1.0,
+        "endVoltage": double.tryParse(fields[1].controller.text) ?? 1.0,
+        "scanRate": double.tryParse(fields[2].controller.text) ?? 0.1,
+        "cycles": int.tryParse(fields[3].controller.text) ?? 3,
+      },
     );
   }
 }
@@ -60,11 +59,14 @@ class RangeInputFormatter extends TextInputFormatter {
     TextEditingValue newValue,
   ) {
     final text = newValue.text;
-    if (text == '-' || text == '' || text == '.' || text == '-.')
+    // Allow incomplete inputs that could become valid numbers.
+    if (text.isEmpty || text == '-' || text == '.' || text == '-.') {
       return newValue;
+    }
     final value = double.tryParse(text);
-    if (value == null) return oldValue;
-    if (value < -1.0 || value > 1.0) return oldValue;
+    if (value == null || value < -1.0 || value > 1.0) {
+      return oldValue;
+    }
     return newValue;
   }
 }

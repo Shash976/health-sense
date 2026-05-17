@@ -70,11 +70,13 @@ class _VoltConfigPageState extends State<VoltConfigPage> {
     setState(() => _loading = true);
     final config = widget.buildConfig(widget.fields);
     try {
-      final response = await http.post(
-        Uri.parse("http://${widget.deviceIp}/${widget.endpoint}"),
-        headers: {"Content-Type": "application/json"},
-        body: json.encode(config),
-      );
+      final response = await http
+          .post(
+            Uri.parse("http://${widget.deviceIp}/${widget.endpoint}"),
+            headers: {"Content-Type": "application/json"},
+            body: json.encode(config),
+          )
+          .timeout(const Duration(seconds: 10));
       if (!mounted) return;
       if (response.statusCode == 200) {
         Navigator.push(
@@ -98,6 +100,14 @@ class _VoltConfigPageState extends State<VoltConfigPage> {
     } finally {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  @override
+  void dispose() {
+    for (final field in widget.fields) {
+      field.controller.dispose();
+    }
+    super.dispose();
   }
 
   @override

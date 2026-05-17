@@ -15,9 +15,11 @@ class Analyte {
 
   Analyte(this.name, this.code, this.oxidationPotential, this.normalMinMGDL,
       this.normalMaxMGDL, this.conversionFactor, this.time, this.calibSlope,
-      this.calibConstant)
-      : assert(normalMinMGDL < normalMaxMGDL,
-            'Normal minimum must be less than maximum');
+      this.calibConstant) {
+    if (normalMinMGDL >= normalMaxMGDL) {
+      throw ArgumentError('normalMinMGDL must be less than normalMaxMGDL');
+    }
+  }
 
   @override
   String toString() {
@@ -97,8 +99,14 @@ void updateAnalyte(String name, String parameter, double newValue) {
         case 'oxidationPotential':
           analyte.oxidationPotential = newValue;
         case 'normalMinMGDL':
+          if (newValue >= analyte.normalMaxMGDL) {
+            throw ArgumentError('normalMinMGDL must be less than normalMaxMGDL');
+          }
           analyte.normalMinMGDL = newValue;
         case 'normalMaxMGDL':
+          if (newValue <= analyte.normalMinMGDL) {
+            throw ArgumentError('normalMaxMGDL must be greater than normalMinMGDL');
+          }
           analyte.normalMaxMGDL = newValue;
         case 'conversionFactor':
           analyte.conversionFactor = newValue;

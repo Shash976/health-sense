@@ -42,7 +42,7 @@ RegressionResult? calculateLinearRegression(Map<double, double> data) {
     ssTot += pow(y[i] - meanY, 2).toDouble();
     ssRes += pow(y[i] - yPred, 2).toDouble();
   }
-  final r2 = 1 - (ssRes / ssTot);
+  final r2 = ssTot == 0 ? 1.0 : 1.0 - ssRes / ssTot;
   return RegressionResult(slope: slope, intercept: intercept, r2: r2);
 }
 
@@ -69,9 +69,10 @@ class _AnalysisPageState extends State<AnalysisPage> {
     setState(() {
       errorMessage = null;
       isLoading = true;
-      concentrationToCurrent.clear();
-      regressionResult = null;
     });
+    // Save existing results so we can restore them if the picker is cancelled.
+    final previousData = SplayTreeMap<double, double>.from(concentrationToCurrent);
+    final previousRegression = regressionResult;
     try {
       if (voltage == null || cycle == null) {
         setState(() {
@@ -86,11 +87,18 @@ class _AnalysisPageState extends State<AnalysisPage> {
         allowedExtensions: ['csv'],
       );
       if (result == null) {
+        // Picker was cancelled — restore previous results.
         setState(() {
+          concentrationToCurrent = previousData;
+          regressionResult = previousRegression;
           isLoading = false;
         });
         return;
       }
+      setState(() {
+        concentrationToCurrent.clear();
+        regressionResult = null;
+      });
       for (var file in result.files) {
         if (file.path == null) continue;
         final filename = file.name;
@@ -143,7 +151,16 @@ class _AnalysisPageState extends State<AnalysisPage> {
 
   Future<void> saveChartAsJpg() async {
     try {
-      RenderRepaintBoundary boundary = chartKey.currentContext!.findRenderObject() as RenderRepaintBoundary;
+      final ctx = chartKey.currentContext;
+      if (ctx == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Chart not ready. Try again.')),
+          );
+        }
+        return;
+      }
+      RenderRepaintBoundary boundary = ctx.findRenderObject() as RenderRepaintBoundary;
       ui.Image chartImage = await boundary.toImage(pixelRatio: 3.0);
       ByteData? byteData = await chartImage.toByteData(format: ui.ImageByteFormat.png);
       if (byteData == null) return;

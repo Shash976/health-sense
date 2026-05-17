@@ -26,6 +26,16 @@ class _TaskPageState extends State<TaskPage> {
     final calibSlopeCtrl = TextEditingController(text: analyte.calibSlope.toString());
     final calibConstantCtrl = TextEditingController(text: analyte.calibConstant.toString());
 
+    void disposeControllers() {
+      oxidationCtrl.dispose();
+      normalMinCtrl.dispose();
+      normalMaxCtrl.dispose();
+      convFactorCtrl.dispose();
+      timeCtrl.dispose();
+      calibSlopeCtrl.dispose();
+      calibConstantCtrl.dispose();
+    }
+
     bool showFields = false;
 
     showDialog(
@@ -114,7 +124,7 @@ class _TaskPageState extends State<TaskPage> {
           },
         );
       },
-    );
+    ).then((_) => disposeControllers());
   }
 
   void _showAddAnalyteDialog(BuildContext context) {
@@ -127,6 +137,18 @@ class _TaskPageState extends State<TaskPage> {
     final timeCtrl = TextEditingController();
     final calibSlopeCtrl = TextEditingController();
     final calibConstantCtrl = TextEditingController();
+
+    void disposeAll() {
+      nameCtrl.dispose();
+      codeCtrl.dispose();
+      oxidationCtrl.dispose();
+      normalMinCtrl.dispose();
+      normalMaxCtrl.dispose();
+      convFactorCtrl.dispose();
+      timeCtrl.dispose();
+      calibSlopeCtrl.dispose();
+      calibConstantCtrl.dispose();
+    }
 
     showDialog(
       context: context,
@@ -202,7 +224,7 @@ class _TaskPageState extends State<TaskPage> {
           ],
         );
       },
-    );
+    ).then((_) => disposeAll());
   }
 
   Widget _buildField(String label, TextEditingController ctrl) {
@@ -223,11 +245,13 @@ class _TaskPageState extends State<TaskPage> {
     if (_startingTest) return;
     setState(() => _startingTest = true);
     try {
-      final response = await http.post(
-        Uri.parse('http://${widget.deviceIp}/test'),
-        headers: {'Content-Type': 'application/json'},
-        body: json.encode(config),
-      );
+      final response = await http
+          .post(
+            Uri.parse('http://${widget.deviceIp}/test'),
+            headers: {'Content-Type': 'application/json'},
+            body: json.encode(config),
+          )
+          .timeout(const Duration(seconds: 10));
       if (!mounted) return;
       if (response.statusCode == 200) {
         debugPrint("Sent parameters: $config");

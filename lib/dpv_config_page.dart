@@ -24,9 +24,9 @@ class DPVConfigPage extends StatelessWidget {
       fields: fields,
       buildConfig: (fields) => {
         "mode": "DPV",
-        "startVoltage": double.tryParse(fields[0].controller.text) ?? -0.5,
+        "startVoltage": double.tryParse(fields[0].controller.text) ?? -1.0,
         "endVoltage": double.tryParse(fields[1].controller.text) ?? 1.0,
-        "stepHeight": double.tryParse(fields[2].controller.text) ?? 0.1,
+        "stepHeight": double.tryParse(fields[2].controller.text) ?? 0.01,
         "stepTime": int.tryParse(fields[3].controller.text) ?? 100,
         "pulseHeight": double.tryParse(fields[4].controller.text) ?? 0.05,
         "pulseWidth": int.tryParse(fields[5].controller.text) ?? 500,

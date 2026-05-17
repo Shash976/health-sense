@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:health_sense/options.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 
 // In AP mode the Arduino always occupies the gateway address.
@@ -52,25 +53,40 @@ class _WifiScanPageState extends State<WifiScanPage> {
   }
 
   Future<void> _manualIpFlow() async {
-    String input = '';
+    final ipController = TextEditingController();
     final ip = await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Enter BioAMP IP'),
         content: TextField(
+          controller: ipController,
           keyboardType: TextInputType.number,
+          inputFormatters: [
+            FilteringTextInputFormatter.allow(RegExp(r'[\d.]')),
+          ],
           decoration: const InputDecoration(hintText: 'e.g. 192.168.4.1'),
-          onChanged: (v) => input = v.trim(),
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-          ElevatedButton(onPressed: () => Navigator.pop(ctx, input), child: const Text('Connect')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, ipController.text.trim()),
+            child: const Text('Connect'),
+          ),
         ],
       ),
     );
+    ipController.dispose();
 
     if (ip == null || ip.isEmpty) return;
 
+    // Basic IPv4 format check.
+    final ipv4 = RegExp(r'^(\d{1,3}\.){3}\d{1,3}$');
+    if (!ipv4.hasMatch(ip)) {
+      _log('Invalid IP address: "$ip"');
+      return;
+    }
+
+    if (!mounted) return;
     setState(() {
       _connecting = true;
       _logs.add('Pinging $ip...');
