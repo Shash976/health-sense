@@ -1,344 +1,392 @@
-# HealthSense : Portable WiFi Potentiostat & Data Analysis Suite
+# BioAMP — Portable WiFi Potentiostat & Mobile Analysis Suite
 
-HealthSense is an open hardware and software platform for portable electrochemical biosensing. It features a **WiFi-enabled Arduino-based potentiostat** and a **Flutter mobile app** for wireless control, data acquisition, and analysis. The platform enables Cyclic Voltammetry (CV), Differential Pulse Voltammetry (DPV), and Amperometry, supporting both general electrochemical research and analyte-specific diagnostics.
+BioAMP is an open-source portable electrochemical biosensing platform built on an Arduino-based potentiostat and a Flutter mobile app. The device creates its own WiFi hotspot; the app connects directly—no router required.
+
+Supported techniques: **Cyclic Voltammetry (CV)**, **Differential Pulse Voltammetry (DPV)**, **Amperometry (AMP)**, and **Analyte-specific diagnostics**.
 
 ---
 
 ## Table of Contents
 
 - [Features](#features)
-- [System Overview](#system-overview)
-- [User Workflows](#user-workflows)
-  - [Device Discovery](#device-discovery)
-  - [Test Configuration and Execution](#test-configuration-and-execution)
-  - [Real-time Data Streaming](#real-time-data-streaming)
-  - [Results Dashboard & CSV Download](#results-dashboard--csv-download)
-  - [Analyte Testing](#analyte-testing)
-  - [CV Data Analysis (App-only)](#cv-data-analysis-app-only)
-- [Architecture](#architecture)
-- [Screenshots](#screenshots)
+- [How It Works](#how-it-works)
+- [Hardware](#hardware)
 - [File Structure](#file-structure)
-- [Setup and Installation](#setup-and-installation)
-  - [Arduino Firmware](#arduino-firmware)
+- [Setup](#setup)
+  - [Firmware](#firmware)
   - [Mobile App](#mobile-app)
 - [REST API Reference](#rest-api-reference)
-- [Extending and Customizing](#extending-and-customizing)
+- [Built-in Analytes](#built-in-analytes)
+- [CV Calibration & Analysis](#cv-calibration--analysis)
+- [Extending the Platform](#extending-the-platform)
 - [Troubleshooting](#troubleshooting)
-- [Contributing](#contributing)
 - [License](#license)
-- [Acknowledgements](#acknowledgements)
 
 ---
 
 ## Features
 
-- **WiFi Device Discovery:**  
-  Automatically scans and lists available HealthSense devices on the local network.
-
-- **No Authentication:**  
-  The app is open-access on the local network, with no login or user accounts.
-
-- **Flexible Test Configuration:**  
-  Set test parameters for CV, DPV, and amperometry, including voltage ranges, step sizes, and timings.
-
-- **Real-Time Data Streaming:**  
-  Live stream of raw data points from Arduino to app. Data is displayed as a scrollable list.
-
-- **Results Dashboard:**  
-  For each test, view results in-app and download as CSV for further analysis.
-
-- **Analyte Testing:**  
-  Select from built-in analytes (e.g., glucose, uric acid). Reference ranges are shown in the dashboard, and test results are interpreted as normal or abnormal.
-
-- **Offline CV Data Analysis:**  
-  Analyze downloaded CSVs directly in the app:  
-  - Visualize CV curves  
-  - Perform linear regression  
-  - Estimate electrochemical properties  
-  - No Arduino required for this analysis
-
-- **Arduino Touchscreen Graphs:**  
-  Live plotting and user interaction are available on the device touchscreen for local monitoring.
-
-- **Extensible REST API:**  
-  Easily extend the Arduino firmware to add new endpoints or analytes.
-
-- **Documentation & Developer Tools:**  
-  Comprehensive API and workflow documentation.
+| | |
+|---|---|
+| 📶 **AP-mode WiFi** | Device creates its own hotspot — no router or internet needed |
+| ⚡ **Three electrochemical techniques** | CV, DPV, and Amperometry |
+| 🧪 **Analyte diagnostics** | Built-in calibrated tests for 7 blood analytes |
+| 📊 **Live data stream** | Real-time (x, y) point streaming to the app at 100 ms intervals |
+| 📥 **CSV export** | One-tap download of raw data; CV files tagged with concentration |
+| 📈 **On-device calibration analysis** | Load multiple CV CSVs, plot concentration vs. current, fit a regression line |
+| 🖥️ **Onboard touchscreen** | Live graph and mode switching directly on the device |
+| 🔌 **Simple REST API** | All control via JSON over HTTP — easy to integrate with scripts or other tools |
 
 ---
 
-## System Overview
+## How It Works
 
-HealthSense consists of two main components:
-
-1. **Arduino-based Potentiostat:**  
-   - Connects to WiFi and exposes a REST API
-   - Controls the electrochemical cell
-   - Displays real-time graphs and status on touchscreen
-
-2. **Flutter Mobile App:**  
-   - Discovers HealthSense devices on the network
-   - Configures and starts electrochemical tests
-   - Streams and displays data, allows CSV download
-   - Analyzes CSV files offline
-
-### Typical User Flow
-
-1. Power on Arduino (HealthSense device)
-2. Open HealthSense app on phone/tablet (same WiFi)
-3. Scan for and connect to device
-4. Configure and run test (CV, DPV, amperometry, or analyte)
-5. Stream and optionally save data
-6. (Optional) Analyze CSV data in app
-
----
-
-## User Workflows
-
-### Device Discovery
-
-- The app pings all IPs on the local network for `/whoami`.
-- Devices identifying as "HealthSense" are listed for selection.
-
-```mermaid
-flowchart LR
-    A[App Start] --> B[WiFi Scan]
-    B --> C{Device responds<br>with 'HealthSense'?}
-    C -- Yes --> D[List in UI]
-    C -- No --> E[Ignore]
+```
+┌──────────────────────────────────────────────────────────────────┐
+│  BioAMP Device (Arduino)                                         │
+│                                                                  │
+│  WiFi AP "BioAMP" ──► REST API on 192.168.4.1:80               │
+│       │                                                          │
+│  DAC (MCP4725) ──► electrochemical cell ──► ADC (ADS1115)       │
+│       │                                         │                │
+│  TFT touchscreen (live graph + mode control)    │                │
+└──────────────────────────────────────────────────────────────────┘
+                   ▲                ▼
+           POST config          GET data
+                   │                │
+┌──────────────────────────────────────────────────────────────────┐
+│  Flutter Mobile App                                              │
+│                                                                  │
+│  Connect to "BioAMP" WiFi                                        │
+│       │                                                          │
+│  Ping /whoami  ──►  Confirm BioAMP identity                      │
+│       │                                                          │
+│  Select test  ──►  POST config  ──►  Poll /[mode]data            │
+│       │                                    │                     │
+│  Show live list / dashboard            Download CSV              │
+│       │                                                          │
+│  Analysis page: load CSVs, regression, export chart JPG         │
+└──────────────────────────────────────────────────────────────────┘
 ```
 
-### Test Configuration and Execution
+### Typical session
 
-- User selects a test mode (CV, DPV, amperometry) or analyte.
-- Presents a form for relevant parameters (e.g., start/stop voltage, scan rate, step size).
-- On submit, sends an HTTP POST to the Arduino.
-
-#### Example CV Parameters
-
-| Parameter     | Description         | Example Value |
-|---------------|--------------------|--------------|
-| Start Voltage | Initial voltage    | -0.5 V       |
-| End Voltage   | Final voltage      | 0.6 V        |
-| Step Size     | Voltage increment  | 0.01 V       |
-| Scan Rate     | Speed of sweep     | 50 mV/s      |
-
-### Real-time Data Streaming
-
-- The app polls the Arduino's `/cvdata`, `/dpvdata`, or `/ampdata` endpoint at 100ms intervals.
-- Each response contains the latest data point (`x`, `y` for CV/DPV; `t`, `i` for amperometry).
-- Data is displayed in a scrollable list; auto-scrolls to latest.
-
-### Results Dashboard & CSV Download
-
-- When the test completes, the app fetches the final result (`/result`).
-- For analytes, the dashboard interprets the value based on reference ranges.
-- User can download all streamed data as a CSV file (with optional metadata, e.g., concentration for CV).
-
-### Analyte Testing
-
-- User selects from built-in analyte options (see `analyte_dashboard.dart`).
-- App sends a request; Arduino executes the appropriate test routine.
-- Results are fetched and interpreted as "normal" or "abnormal" based on min/max reference.
-
-### CV Data Analysis (App-only)
-
-- In the app, the user can load a CSV from device storage.
-- Data is parsed and shown as a graph (CV curve).
-- User can select sections for linear regression to estimate parameters (e.g., slope, y-intercept).
-- All analysis is local; Arduino is not involved.
+1. Power on the BioAMP device — it starts the "BioAMP" hotspot.
+2. On your phone, join **BioAMP** (password: `bioamp123`).
+3. Open the app → tap **Connect to BioAMP** (auto-detects `192.168.4.1`).
+4. Choose a test mode, fill in parameters, tap **Start**.
+5. Watch data stream in real time; download CSV when done.
+6. For analyte tests, the result and normal-range interpretation appear automatically.
 
 ---
 
-## Architecture
+## Hardware
 
-```mermaid
-graph TD
-    subgraph Mobile App
-        A1[WiFi Scan] --> A2[Device Selection]
-        A2 --> A3[Test Parameter Form]
-        A3 --> A4[POST Config to Arduino]
-        A4 --> A5[Poll Data Endpoint]
-        A5 --> A6[Display Data, Allow CSV Download]
-        A6 --> A7[CV Analysis Page]
-    end
+| Component | Part |
+|---|---|
+| Microcontroller | Arduino (WiFiNINA-compatible, e.g. Arduino Nano 33 IoT / MKR WiFi 1010) |
+| DAC | Adafruit MCP4725 (I²C, address `0x60`) |
+| ADC | Adafruit ADS1115 (I²C, gain `TWOTHIRDS` → ±6.144 V) |
+| Display | ILI9341 2.8" TFT (CS=10, DC=8, RST=9) |
+| Touch | XPT2046 resistive touch (CS=7) |
+| Voltage reference | V_REF = 4.8 V (level-shifted: −1 V .. +1 V → 0 V .. 2 V for DAC) |
+| Feedback resistor | 1 kΩ (transimpedance amplifier) |
 
-    subgraph Arduino Device
-        B1[WiFi Connect & REST API]
-        B2[Electrochemical Control]
-        B3[Touchscreen Display]
-        B4[Data Storage]
-        B1 --> B2
-        B1 --> B3
-        B1 --> B4
-    end
+### Wiring summary
 
-    A4 --HTTP REST--> B1
-    A5 --HTTP Poll--> B1
-    A6 --Download CSV--> A7
 ```
-
----
-
-## Screenshots
-
-_(Insert screenshots of key app pages: WiFi scan, test config, data stream, results dashboard, analyte page, CV analysis page)_  
-_(Insert photo of Arduino device with touchscreen running a test)_
+Arduino  ──SPI──►  TFT (ILI9341)   CS=10  DC=8  RST=9
+Arduino  ──SPI──►  Touchscreen     CS=7
+Arduino  ──I²C──►  DAC (MCP4725)   0x60
+Arduino  ──I²C──►  ADC (ADS1115)   default addr
+```
 
 ---
 
 ## File Structure
 
 ```
-bio-amp/
-├── arduino/
-│   └── HealthSense.ino          # Arduino firmware
-├── lib/                    # Flutter app source
-│   ├── main.dart           # Entry point
-│   ├── wifi_scan_page.dart # Device discovery
-│   ├── volt_config_page.dart
-│   ├── dpv_config_page.dart
-│   ├── amp_config_page.dart
-│   ├── volt_dashboard.dart # Data streaming/results UI
-│   ├── analyte_dashboard.dart
-│   ├── cv_analysis_page.dart # CSV analysis & regression
-│   ├── ... (other UI components)
-├── README.md
-├── pubspec.yaml
-└── ...
+healthSense/
+│
+├── healthSense/                  # Arduino sketch folder
+│   ├── healthSense.ino           # setup(), loop(), all global state
+│   ├── config.h                  # Pin defines and hardware constants
+│   ├── types.h                   # Analyte struct, Mode enum
+│   ├── display_ui.ino            # All TFT drawing functions + plotPoint/mapFloat
+│   ├── cv_mode.ino               # Cyclic Voltammetry step engine
+│   ├── dpv_mode.ino              # Differential Pulse Voltammetry step engine
+│   ├── amp_mode.ino              # Amperometry step engine
+│   ├── analyte_mode.ino          # Analyte test execution + result display
+│   ├── routes.ino                # HTTP endpoint handlers
+│   ├── comms.ino                 # respondJSON, getContentLength, readRequestBody
+│   ├── touch_handler.ino         # handleTouch() — full touch event dispatch
+│   └── logo_bitmap.h             # Splash screen bitmap
+│
+└── lib/                          # Flutter app source
+    ├── main.dart                 # App entry point; loads analyte config
+    ├── welcome.dart              # Splash / landing page
+    ├── wifi_scan_page.dart       # Device discovery and connection
+    ├── options.dart              # Mode selection hub
+    ├── cv_config_page.dart       # Cyclic Voltammetry config form
+    ├── dpv_config_page.dart      # DPV config form
+    ├── amp_config_page.dart      # Amperometry config form
+    ├── volt_config_page.dart     # Generic config form + HTTP POST (shared)
+    ├── volt_dashboard.dart       # Live data stream + CSV export
+    ├── analyteTasks.dart         # Analyte selection and test launch
+    ├── analyte_dashboard.dart    # Analyte result display with normal-range bar
+    ├── analysis_page.dart        # Offline CV calibration analysis + regression
+    └── analyte_constants.dart    # Analyte data model + SharedPreferences persistence
 ```
 
 ---
 
-## Setup and Installation
+## Setup
 
-### Arduino Firmware
+### Firmware
 
-1. **Hardware:**  
-   - Assemble the HealthSense circuit with Arduino (see schematic in `docs/`).
-   - Attach touchscreen (if available).
+**Dependencies** (install via Arduino Library Manager):
 
-2. **Libraries:**  
-   - Install required Arduino libraries:  
-     - WiFiNINA / ESP32 WiFi
-     - Adafruit GFX (for touchscreen)
-     - ArduinoJson
+| Library | Purpose |
+|---|---|
+| `WiFiNINA` | WiFi AP and TCP server |
+| `Adafruit GFX` | TFT graphics primitives |
+| `Adafruit ILI9341` | TFT driver |
+| `XPT2046_Touchscreen` | Resistive touch driver |
+| `Adafruit MCP4725` | DAC control |
+| `Adafruit ADS1X15` | ADC control |
+| `ArduinoJson` | JSON parsing for REST requests |
 
-3. **Upload:**  
-   - Open `arduino/HealthSense.ino` in Arduino IDE.
-   - Configure WiFi credentials in the sketch.
-   - Upload to your board.
+**Flash the firmware:**
 
-4. **Network:**  
-   - Ensure the Arduino and your mobile device are on the same local WiFi.
+1. Open `healthSense/healthSense.ino` in Arduino IDE 2.x.
+2. Select your board (e.g. **Arduino Nano 33 IoT**).
+3. The sketch folder now contains multiple `.ino` and `.h` files — Arduino IDE handles them automatically.
+4. Upload. Open Serial Monitor at **115200 baud** to confirm startup.
+
+Expected serial output:
+```
+Starting AP: BioAMP
+AP IP: 192.168.4.1
+```
 
 ### Mobile App
 
-1. **Requirements:**  
-   - Flutter SDK (>= 3.0)
-   - Android or iOS device on same WiFi
+**Requirements:** Flutter SDK ≥ 3.7, Android or iOS device.
 
-2. **Installation:**  
-   ```sh
-   git clone https://github.com/Shash976/bio-amp.git
-   cd bio-amp
-   flutter pub get
-   flutter run
-   ```
+```sh
+git clone https://github.com/Shash976/bio-amp.git
+cd bio-amp
+flutter pub get
+flutter run
+```
 
-3. **Permissions:**  
-   - Allow local network access if prompted.
+Grant local network access when prompted (required for direct AP-mode communication).
+
+**Key dependencies:**
+
+| Package | Use |
+|---|---|
+| `http` | REST communication with device |
+| `fl_chart` | Calibration curve chart |
+| `file_picker` | CSV file selection for analysis |
+| `flutter_downloader` | CSV save-to-downloads |
+| `shared_preferences` | Analyte config persistence |
+| `path_provider` | File paths |
 
 ---
 
 ## REST API Reference
 
-The Arduino exposes a REST API for all control and data actions.
+Base URL: `http://192.168.4.1` (when connected to BioAMP hotspot)
 
-| Endpoint           | Method | Description                          | Payload/Params                 |
-|--------------------|--------|--------------------------------------|--------------------------------|
-| `/whoami`          | GET    | Identify device                      | —                              |
-| `/cv`              | POST   | Start CV test                        | JSON params                    |
-| `/dpv`             | POST   | Start DPV test                       | JSON params                    |
-| `/amp`             | POST   | Start amperometry                    | JSON params                    |
-| `/cvdata`          | GET    | Get latest CV data point             | —                              |
-| `/dpvdata`         | GET    | Get latest DPV data point            | —                              |
-| `/ampdata`         | GET    | Get latest amperometry data point    | —                              |
-| `/result`          | GET    | Get final result                     | —                              |
-| `/analyte`         | POST   | Start analyte-specific test          | analyte name                   |
+All request bodies and responses are **JSON**. All responses include `Access-Control-Allow-Origin: *`.
 
-#### Example: Start CV Test
+### Identity
 
-```json
-POST /cv
+| Method | Endpoint | Response |
+|---|---|---|
+| GET | `/whoami` | `{"name":"BioAMP"}` |
+
+### Analyte test
+
+#### Start test
+```http
+POST /test
+Content-Type: application/json
+
 {
-  "start_voltage": -0.5,
-  "end_voltage": 0.6,
-  "step_size": 0.01,
-  "scan_rate": 50
+  "task":               "BIL",
+  "oxidationPotential": 0.15,
+  "normalMinMGDL":      0.1,
+  "normalMaxMGDL":      1.2,
+  "conversionFactor":   17.1,
+  "time":               1000,
+  "calibSlope":         9.2609e-9,
+  "calibConstant":      7.276e-7
 }
 ```
+Response: `{"status":"started"}`
 
-#### Example: Poll Data
-
+#### Poll result
 ```http
-GET /cvdata
-Response: { "x": 0.03, "y": 1.24 }
+GET /result
 ```
+Responses:
+- `{"status":"not_started"}` — no test running
+- `{"status":"processing"}` — test in progress (poll again in 2 s)
+- `{"value":0.85}` — result in mg/dL (one-time; cleared on read)
 
 ---
 
-## Extending and Customizing
+### Cyclic Voltammetry (CV)
 
-- **Add New Analytes:**  
-  - Edit firmware to support new routines or reference ranges.
-  - Update `analyte_dashboard.dart` in the app for new UI options.
+#### Start
+```http
+POST /cv
+Content-Type: application/json
 
-- **Change Test Modes:**  
-  - Add new endpoints and UI forms for new voltammetry techniques.
+{
+  "startVoltage": -1.0,
+  "endVoltage":    1.0,
+  "scanRate":      0.1,
+  "cycles":        3
+}
+```
+Voltages are in the **−1.0 V .. +1.0 V** range (firmware adds the 1 V level shift internally).  
+Response: `{"status":"cv_started"}`
 
-- **Customize Analysis:**  
-  - Modify `cv_analysis_page.dart` to add more statistical or graphical tools.
+#### Stream data
+```http
+GET /cvdata
+```
+Responses:
+- `{"x":-0.995,"y":0.012}` — next unread (x = voltage V, y = current µA)
+- `{"status":"waiting"}` — no new point yet; poll again
+- `{"status":"cv_done"}` — sweep complete
+
+---
+
+### Differential Pulse Voltammetry (DPV)
+
+#### Start
+```http
+POST /dpv
+Content-Type: application/json
+
+{
+  "startVoltage": -1.0,
+  "endVoltage":    1.0,
+  "stepHeight":    0.01,
+  "stepTime":      100,
+  "pulseHeight":   0.05,
+  "pulseWidth":    500
+}
+```
+Response: `{"status":"dpv_started"}`
+
+#### Stream data
+```http
+GET /dpvdata
+```
+Responses mirror CV: `{"x":...,"y":...}` | `{"status":"waiting"}` | `{"status":"dpv_done"}`
+
+---
+
+### Amperometry (AMP)
+
+#### Start
+```http
+POST /amp
+Content-Type: application/json
+
+{
+  "oxidationPotential": 0.0,
+  "runTime":            100,
+  "measureInterval":    100
+}
+```
+`runTime` and `measureInterval` are in **milliseconds**.  
+Response: `{"status":"amp_started"}`
+
+#### Stream data
+```http
+GET /ampdata
+```
+Responses: `{"x":1,"y":0.00312}` (x = time s, y = current µA) | `{"status":"waiting"}` | `{"status":"amp_done"}`
+
+---
+
+## Built-in Analytes
+
+| Analyte | Code | Ox. Potential | Normal Range | Conv. Factor |
+|---|---|---|---|---|
+| Bilirubin | BIL | 0.15 V | 0.1 – 1.2 mg/dL | 17.1 µmol/L per mg/dL |
+| ALP | ALP | 0.25 V | 44 – 147 mg/dL | — |
+| ALT | ALT | 0.30 V | 7 – 56 mg/dL | — |
+| AST | AST | 0.27 V | 10 – 40 mg/dL | — |
+| Phosphorus | PHO | 0.22 V | 2.5 – 4.5 mg/dL | 0.32 µmol/L |
+| Albumin | ALB | 0.18 V | 3.5 – 5.0 mg/dL | 150 µmol/L |
+| Ascorbic Acid | ASC | 0.20 V | 0.4 – 1.5 mg/dL | 56.78 µmol/L |
+
+Calibration constants (`calibSlope`, `calibConstant`) are shared defaults — update them per instrument after running a calibration sweep.
+
+Custom analytes can be added in the app (tap **+** on the analyte page) and are saved to device storage via SharedPreferences.
+
+---
+
+## CV Calibration & Analysis
+
+The **Analysis** page (accessible from the options screen) allows you to build a calibration curve from multiple CV runs:
+
+1. Run CV tests at several known concentrations.
+2. For each run, download the CSV and name it `cv_data_<concentration>.csv`  
+   (e.g. `cv_data_0_5.csv` → 0.5 µM; underscores become decimal points).
+3. In the Analysis page, enter the **voltage** and **cycle number** to extract the peak current from each file.
+4. Tap **Upload CSV Files** and select all calibration CSVs.
+5. The app plots current vs. concentration, fits a least-squares regression, and reports **slope**, **intercept**, and **R²**.
+6. Tap **Save as JPG** to export the chart.
+
+Copy the fitted slope and intercept into `calibSlope` / `calibConstant` for a given analyte to enable quantitative diagnostics.
+
+---
+
+## Extending the Platform
+
+### Add a new analyte (app only)
+Tap **+** on the Analyte page and fill in the form. The analyte is persisted across sessions.
+
+To add a default analyte that ships with the app, append it to `_defaultAnalytes` in `lib/analyte_constants.dart`.
+
+### Add a new test endpoint (firmware)
+1. Declare new global state variables in `healthSense.ino`.
+2. Implement the step engine in a new `mymode.ino` file.
+3. Add route handlers in `routes.ino`.
+4. Dispatch in `loop()` (in `healthSense.ino`) and in `handleTouch()` (in `touch_handler.ino`).
+
+### Add a new app config screen
+Subclass the existing pattern: create `mymode_config_page.dart` that builds a list of `VoltConfigField` objects and passes them to `VoltConfigPage`. The generic page handles validation, HTTP POST, and loading state automatically.
 
 ---
 
 ## Troubleshooting
 
-- **Device not found:**  
-  - Double-check WiFi connection and power.
-  - Ensure both devices are on the same subnet.
-  - Check for firewall/router blocking.
-
-- **App issues:**  
-  - Run `flutter doctor` and resolve warnings.
-  - Check app permissions for network access.
-
-- **Firmware issues:**  
-  - Monitor serial output for errors.
-  - Ensure all Arduino libraries are installed.
-
----
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Commit and push your changes
-4. Submit a Pull Request—describe your changes and link to the relevant issues
+| Symptom | Likely cause | Fix |
+|---|---|---|
+| "No response from 192.168.4.1" | Phone not on BioAMP WiFi | Connect to **BioAMP** (password `bioamp123`) first |
+| Device found but test never starts | Serial timeout / firmware hung | Reset Arduino; check Serial Monitor for errors |
+| Data stream stops mid-test | 5 s HTTP timeout exceeded | Reduce polling interval or increase firmware step time |
+| CSV has mismatched x/y lengths | Race condition during export | Fixed in current version (snapshot taken before export) |
+| Analysis page shows NaN R² | All current values identical | Verify calibration CSVs contain variation; check sensor connections |
+| "Chart not ready" on JPG export | Widget not yet rendered | Scroll chart into view before tapping Save |
+| Analyte result is wildly off | Wrong `calibSlope`/`calibConstant` | Run a calibration sweep and update values in the app |
+| `flutter run` fails | Missing dependencies | Run `flutter pub get`; confirm Flutter ≥ 3.7 (`flutter --version`) |
 
 ---
 
 ## License
 
-MIT License
+MIT License — see [LICENSE](LICENSE) for details.
 
 ---
 
-## Acknowledgements
-
-HealthSense is inspired by open hardware projects in the biosensing and DIY potentiostat community. Special thanks to contributors, testers, and the open-source Flutter and Arduino communities.
-
----
-
-_For full commit history and updates, see [GitHub Commits](https://github.com/Shash976/bio-amp/commits/main)_
+*For commit history and releases, see the [GitHub repository](https://github.com/Shash976/bio-amp).*
