@@ -1,6 +1,6 @@
-# BioAMP — Portable WiFi Potentiostat & Mobile Analysis Suite
+# BioAMP: Portable WiFi Potentiostat & Mobile Analysis Suite
 
-BioAMP is an open-source portable electrochemical biosensing platform built on an Arduino-based potentiostat and a Flutter mobile app. The device creates its own WiFi hotspot; the app connects directly—no router required.
+BioAMP is an open-source portable electrochemical biosensing platform built on an Arduino-based potentiostat and a Flutter mobile app. The device creates its own WiFi hotspot; the app connects directly-no router required.
 
 Supported techniques: **Cyclic Voltammetry (CV)**, **Differential Pulse Voltammetry (DPV)**, **Amperometry (AMP)**, and **Analyte-specific diagnostics**.
 
@@ -28,14 +28,14 @@ Supported techniques: **Cyclic Voltammetry (CV)**, **Differential Pulse Voltamme
 
 | | |
 |---|---|
-| 📶 **AP-mode WiFi** | Device creates its own hotspot — no router or internet needed |
-| ⚡ **Three electrochemical techniques** | CV, DPV, and Amperometry |
-| 🧪 **Analyte diagnostics** | Built-in calibrated tests for 7 blood analytes |
-| 📊 **Live data stream** | Real-time (x, y) point streaming to the app at 100 ms intervals |
-| 📥 **CSV export** | One-tap download of raw data; CV files tagged with concentration |
-| 📈 **On-device calibration analysis** | Load multiple CV CSVs, plot concentration vs. current, fit a regression line |
-| 🖥️ **Onboard touchscreen** | Live graph and mode switching directly on the device |
-| 🔌 **Simple REST API** | All control via JSON over HTTP — easy to integrate with scripts or other tools |
+|  **AP-mode WiFi** | Device creates its own hotspot - no router or internet needed |
+|  **Three electrochemical techniques** | CV, DPV, and Amperometry |
+|  **Analyte diagnostics** | Built-in calibrated tests for 7 blood analytes |
+|  **Live data stream** | Real-time (x, y) point streaming to the app at 100 ms intervals |
+|  **CSV export** | One-tap download of raw data; CV files tagged with concentration |
+|  **On-device calibration analysis** | Load multiple CV CSVs, plot concentration vs. current, fit a regression line |
+|  **Onboard touchscreen** | Live graph and mode switching directly on the device |
+|  **Simple REST API** | All control via JSON over HTTP - easy to integrate with scripts or other tools |
 
 ---
 
@@ -71,12 +71,12 @@ Supported techniques: **Cyclic Voltammetry (CV)**, **Differential Pulse Voltamme
 
 ### Typical session
 
-1. Power on the BioAMP device — it starts the "BioAMP" hotspot.
-2. On your phone, join **BioAMP** (password: `bioamp123`).
-3. Open the app → tap **Connect to BioAMP** (auto-detects `192.168.4.1`).
-4. Choose a test mode, fill in parameters, tap **Start**.
-5. Watch data stream in real time; download CSV when done.
-6. For analyte tests, the result and normal-range interpretation appear automatically.
+1. Power on the BioAMP device. It starts the "BioAMP" hotspot.
+3. On your phone, join **BioAMP** (password: `bioamp123`).
+4. Open the app → tap **Connect to BioAMP** (auto-detects `192.168.4.1`).
+5. Choose a test mode, fill in parameters, tap **Start**.
+6. Watch data stream in real time; download CSV when done.
+7. For analyte tests, the result and normal-range interpretation appear automatically.
 
 ---
 
@@ -119,7 +119,7 @@ healthSense/
 │   ├── analyte_mode.ino          # Analyte test execution + result display
 │   ├── routes.ino                # HTTP endpoint handlers
 │   ├── comms.ino                 # respondJSON, getContentLength, readRequestBody
-│   ├── touch_handler.ino         # handleTouch() — full touch event dispatch
+│   ├── touch_handler.ino         # handleTouch() - full touch event dispatch
 │   └── logo_bitmap.h             # Splash screen bitmap
 │
 └── lib/                          # Flutter app source
@@ -160,7 +160,7 @@ healthSense/
 
 1. Open `healthSense/healthSense.ino` in Arduino IDE 2.x.
 2. Select your board (e.g. **Arduino Nano 33 IoT**).
-3. The sketch folder now contains multiple `.ino` and `.h` files — Arduino IDE handles them automatically.
+3. The sketch folder now contains multiple `.ino` and `.h` files - Arduino IDE handles them automatically.
 4. Upload. Open Serial Monitor at **115200 baud** to confirm startup.
 
 Expected serial output:
@@ -232,9 +232,9 @@ Response: `{"status":"started"}`
 GET /result
 ```
 Responses:
-- `{"status":"not_started"}` — no test running
-- `{"status":"processing"}` — test in progress (poll again in 2 s)
-- `{"value":0.85}` — result in mg/dL (one-time; cleared on read)
+- `{"status":"not_started"}` - no test running
+- `{"status":"processing"}` - test in progress (poll again in 2 s)
+- `{"value":0.85}` - result in mg/dL (one-time; cleared on read)
 
 ---
 
@@ -260,9 +260,9 @@ Response: `{"status":"cv_started"}`
 GET /cvdata
 ```
 Responses:
-- `{"x":-0.995,"y":0.012}` — next unread (x = voltage V, y = current µA)
-- `{"status":"waiting"}` — no new point yet; poll again
-- `{"status":"cv_done"}` — sweep complete
+- `{"x":-0.995,"y":0.012}` - next unread (x = voltage V, y = current µA)
+- `{"status":"waiting"}` - no new point yet; poll again
+- `{"status":"cv_done"}` - sweep complete
 
 ---
 
@@ -320,15 +320,15 @@ Responses: `{"x":1,"y":0.00312}` (x = time s, y = current µA) | `{"status":"wai
 
 | Analyte | Code | Ox. Potential | Normal Range | Conv. Factor |
 |---|---|---|---|---|
-| Bilirubin | BIL | 0.15 V | 0.1 – 1.2 mg/dL | 17.1 µmol/L per mg/dL |
-| ALP | ALP | 0.25 V | 44 – 147 mg/dL | — |
-| ALT | ALT | 0.30 V | 7 – 56 mg/dL | — |
-| AST | AST | 0.27 V | 10 – 40 mg/dL | — |
+| Bilirubin | BIL | 0.15 V | 0.1 - 1.2 mg/dL | 17.1 µmol/L per mg/dL |
+| ALP | ALP | 0.25 V | 44 – 147 mg/dL | - |
+| ALT | ALT | 0.30 V | 7 – 56 mg/dL | - |
+| AST | AST | 0.27 V | 10 – 40 mg/dL | - |
 | Phosphorus | PHO | 0.22 V | 2.5 – 4.5 mg/dL | 0.32 µmol/L |
 | Albumin | ALB | 0.18 V | 3.5 – 5.0 mg/dL | 150 µmol/L |
 | Ascorbic Acid | ASC | 0.20 V | 0.4 – 1.5 mg/dL | 56.78 µmol/L |
 
-Calibration constants (`calibSlope`, `calibConstant`) are shared defaults — update them per instrument after running a calibration sweep.
+Calibration constants (`calibSlope`, `calibConstant`) are shared defaults. Update them per instrument after running a calibration sweep.
 
 Custom analytes can be added in the app (tap **+** on the analyte page) and are saved to device storage via SharedPreferences.
 
@@ -385,7 +385,7 @@ Subclass the existing pattern: create `mymode_config_page.dart` that builds a li
 
 ## License
 
-MIT License — see [LICENSE](LICENSE) for details.
+MIT License - see [LICENSE](LICENSE) for details.
 
 ---
 
